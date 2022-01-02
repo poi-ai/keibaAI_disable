@@ -1,6 +1,8 @@
 import csv
 import sys
 import time
+
+import requests
 from common import Soup
 import datetime
 
@@ -12,12 +14,15 @@ def main():
     get_years = START_RACE_DATE[:4]
     get_month = START_RACE_DATE[4:6]
 
-    while get_years < END_RACE_DATE[:4] or (get_years < END_RACE_DATE[:4] and get_month < END_RACE_DATE[4:6]):
+    while get_years < END_RACE_DATE[:4] or (get_years == END_RACE_DATE[:4] and get_month <= END_RACE_DATE[4:6]):
         # 開催日を取得
         hold_list = get_hold(get_years, get_month)
-        print(hold_list)
 
-        # TODO 開始日以前の開催日の切り落とし
+        # 開始日以前の開催日の切り落とし
+        if get_years == START_RACE_DATE[:4] or get_month == START_RACE_DATE[4:6]:
+            hold_list.append(START_RACE_DATE)
+            hold_list.sort()
+            hold_list = hold_list[hold_list.index(START_RACE_DATE) + 1:]
 
         # 終了日以降の開催日の切り落とし
         if get_years == END_RACE_DATE[:4] or get_month == END_RACE_DATE[4:6]:
@@ -27,15 +32,41 @@ def main():
                 hold_list = hold_list[:hold_list.index(END_RACE_DATE) + 1]
             else:
                 hold_list = hold_list[:hold_list.index(END_RACE_DATE)]
-            print(hold_list)
-        race_list = get_race(hold_list)
-        exit()
+
+        get_race(hold_list)
 
 def get_race(hold_list):
     for hold_date in hold_list:
+        race_url = 'https://race.netkeiba.com/top/race_list.html?kaisai_date='\
+                   + hold_date
+
+        '''
+        soup = Soup.get_soup(race_url)
+
+        import requests
+        from bs4 import BeautifulSoup
+
+        r = requests.post('https://race.netkeiba.com/api/api_get_jra_digest2.html',
+        kaisai_date = '20211204')
+        print(r)
+        soup = BeautifulSoup(r.text, 'lxml')
+        print(soup)
         exit()
-        soup = Soup.get_soup(hold_date)
+        links = soup.find_all('a')
+        print(links)
+        exit()
+        race_list = []
+        
+        for link in links:
+            race_url = link.get('href')
+            print(race_url)
+            
+            #if 'race_id' in race_url:
+                #race_list.append(race_url[len(race_url) - 8:])
+        #print(race_list)
+        exit()
         # TODO 特定の日付一覧から各レース取得
+        '''
 
 def get_hold(years, month):
     url = 'https://race.netkeiba.com/top/calendar.html?year='\
