@@ -15,7 +15,7 @@ def main():
     get_month = START_RACE_DATE[4:6]
 
     while get_years < END_RACE_DATE[:4] or (get_years == END_RACE_DATE[:4] and get_month <= END_RACE_DATE[4:6]):
-        # 開催日を取得
+        # 開催月を取得
         hold_list = get_date(get_years, get_month)
 
         # 開始日以前の開催日の切り落とし
@@ -32,26 +32,27 @@ def main():
                 hold_list = hold_list[:hold_list.index(END_RACE_DATE) + 1]
             else:
                 hold_list = hold_list[:hold_list.index(END_RACE_DATE)]
+        
+        # 開催日の各レース番号を取得
+        race_list = get_race(hold_list)
+        print(race_list)
+        exit()
 
-        get_cource(hold_list)
-
-def get_cource(hold_list):
+def get_race(hold_list):
     for hold_date in hold_list:
-        cource_url = 'https://race.netkeiba.com/top/race_list_get_date_list.html?kaisai_date='\
+        cource_url = 'https://race.netkeiba.com/top/race_list_sub.html?kaisai_date='\
                    + hold_date
 
         soup = Soup.get_soup(cource_url)
         links = soup.find_all('a')
-        hold_list = [link.get('href') for link in links]
-
-        print(hold_list)
-        exit()
+        race_list = []
+        for link in links:
+            race_url = link.get('href')
+            if 'result' in race_url:
+                race_list.append(race_url[28:40])
+        return race_list
         
         #get_race(hold_list)
-
-def get_race():
-    pass
-    # TODO APIから各レースのURLを取得
 
 def get_date(years, month):
     url = 'https://race.netkeiba.com/top/calendar.html?year='\
