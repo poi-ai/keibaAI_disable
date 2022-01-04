@@ -35,8 +35,14 @@ def main():
         
         # 開催日の各レース番号を取得
         race_list = get_race(hold_list)
-        print(race_list)
+        scrapring_race(race_list)
         exit()
+
+def scraping_race(race_list):
+    
+    // TODO レース情報から特徴量をスクレイピング
+    // TODO レース結果から正解ラベルをスクレイピング
+    exit()
 
 def get_race(hold_list):
     for hold_date in hold_list:
@@ -51,8 +57,6 @@ def get_race(hold_list):
             if 'result' in race_url:
                 race_list.append(race_url[28:40])
         return race_list
-        
-        #get_race(hold_list)
 
 def get_date(years, month):
     url = 'https://race.netkeiba.com/top/calendar.html?year='\
