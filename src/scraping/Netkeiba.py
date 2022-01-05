@@ -59,6 +59,16 @@ def get_race(hold_list):
         return race_list
 
 def get_date(years, month):
+    '''中央競馬の開催日を取得するメソッド
+
+    Args:
+        years(str):取得する対象の年。yyyy
+        month(str):取得する対象の月。MM
+
+    Return:
+        hold_list(list):対象年月の開催日をlist型を返す。要素はyyyyMMdd形式。
+
+    '''
     url = 'https://race.netkeiba.com/top/calendar.html?year='\
           + years\
           + '&month='\
