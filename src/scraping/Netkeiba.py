@@ -38,13 +38,27 @@ def main():
         scrapring_race(race_list)
         exit()
 
-def scraping_race(race_list):
+def scraping_race(race_num):
+    '''レース番号からレース情報・結果をスクレイピング
+
+    Args:
+        race_num(str):レース番号。10桁(年+回+日+競馬場コード)
     
+    '''
     // TODO レース情報から特徴量をスクレイピング
+    # info_url = 
     // TODO レース結果から正解ラベルをスクレイピング
+    # result_url =
     exit()
 
 def get_race(hold_list):
+    '''対象年月日のレース番号を取得
+
+    Args:
+        hold_list(list):中央開催日の年月日(yyyyMMdd)を要素に持つlist
+        
+    '''
+
     for hold_date in hold_list:
         cource_url = 'https://race.netkeiba.com/top/race_list_sub.html?kaisai_date='\
                    + hold_date
@@ -55,18 +69,18 @@ def get_race(hold_list):
         for link in links:
             race_url = link.get('href')
             if 'result' in race_url:
-                race_list.append(race_url[28:40])
-        return race_list
+                scraping_race(race_url[28:40])
+        
 
 def get_date(years, month):
-    '''中央競馬の開催日を取得するメソッド
+    '''中央競馬の開催日を取得
 
     Args:
         years(str):取得する対象の年。yyyy
         month(str):取得する対象の月。MM
 
     Return:
-        hold_list(list):対象年月の開催日をlist型を返す。要素はyyyyMMdd形式。
+        hold_list(list):対象年月の開催日。要素はyyyyMMdd形式のstr型。
 
     '''
     url = 'https://race.netkeiba.com/top/calendar.html?year='\
@@ -84,6 +98,13 @@ def get_date(years, month):
     return hold_list
 
 def argv_check():
+    '''スクレイピングの開始日と終了日をチェック
+
+    Return:
+       sys.args[1](str):スクレイピング対象の最初の日。yyyyMMdd形式
+       sys.args[2](str):スクレイピング対象の最後の日。yyyyMMdd形式
+
+    '''
     # 引数の数チェック
     if len(sys.argv) != 3:
         raise ValueError('入力した引数の数が間違っています')
