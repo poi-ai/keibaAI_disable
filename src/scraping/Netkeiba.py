@@ -34,8 +34,7 @@ def main():
                 hold_list = hold_list[:hold_list.index(END_RACE_DATE)]
         
         # 開催日の各レース番号を取得
-        race_list = get_race(hold_list)
-        scrapring_race(race_list)
+        get_race(hold_list)
         exit()
 
 def scraping_race(race_num):
@@ -45,10 +44,13 @@ def scraping_race(race_num):
         race_num(str):レース番号。10桁(年+回+日+競馬場コード)
     
     '''
-    // TODO レース情報から特徴量をスクレイピング
-    # info_url = 
-    // TODO レース結果から正解ラベルをスクレイピング
-    # result_url =
+    # TODO レース情報をスクレイピング
+    info_url = 'https://race.netkeiba.com/race/shutuba_past.html?race_id='\
+                + race_num
+
+    # TODO レース結果をスクレイピング
+    result_url = 'https://race.netkeiba.com/race/result.html?race_id='\
+                 + race_num
     exit()
 
 def get_race(hold_list):
@@ -65,7 +67,6 @@ def get_race(hold_list):
 
         soup = Soup.get_soup(cource_url)
         links = soup.find_all('a')
-        race_list = []
         for link in links:
             race_url = link.get('href')
             if 'result' in race_url:
