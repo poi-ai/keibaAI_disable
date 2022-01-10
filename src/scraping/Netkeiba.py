@@ -1,8 +1,6 @@
 import csv
 import sys
 import time
-
-import requests
 from common import Soup
 import datetime
 
@@ -37,20 +35,47 @@ def main():
         get_race(hold_list)
         exit()
 
+def get_info(soup):
+    '''HTMLデータから共通で使えるレース情報を抽出
+
+    Args:
+        soup(bs4.BeautifulSoup): レース情報全てを含むHTMLデータ
+
+    Returns:
+        race_info(list[str]): レース情報を持つリスト
+    
+    '''
+    race_data_01 = Soup.del_tag(soup.find('div', class_='RaceData01')).split('/')
+    race_data_02 = Soup.del_tag(soup.find('div', class_='RaceData02')).split()
+
+    print(race_data_01)
+    print()
+    print(race_data_02)
+    exit()
+    return []
+    
+
 def scraping_race(race_num):
     '''レース番号からレース情報・結果をスクレイピング
 
     Args:
-        race_num(str):レース番号。10桁(年+回+日+競馬場コード)
+        race_num(str):レース番号。10桁(西暦+開催回+開催日+競馬場コード)
     
     '''
-    # TODO レース情報をスクレイピング
+    # レース馬柱のURLからHTMLデータをスクレイピング
     info_url = 'https://race.netkeiba.com/race/shutuba_past.html?race_id='\
                 + race_num
+    
+    soup = Soup.get_soup(info_url)
+    
+    race_info = get_info(soup)
+    exit()
 
-    # TODO レース結果をスクレイピング
+    # TODO レース結果からHTMLデータをスクレイピング
     result_url = 'https://race.netkeiba.com/race/result.html?race_id='\
                  + race_num
+
+
     exit()
 
 def get_race(hold_list):
@@ -60,7 +85,6 @@ def get_race(hold_list):
         hold_list(list):中央開催日の年月日(yyyyMMdd)を要素に持つlist
         
     '''
-
     for hold_date in hold_list:
         cource_url = 'https://race.netkeiba.com/top/race_list_sub.html?kaisai_date='\
                    + hold_date
