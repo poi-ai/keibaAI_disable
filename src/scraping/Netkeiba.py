@@ -1,8 +1,9 @@
 import csv
+import datetime
 import sys
 import time
+import re
 from common import Soup
-import datetime
 
 def main():
     # 引数の妥当性チェック
@@ -45,12 +46,19 @@ def get_info(soup):
         race_info(list[str]): レース情報を持つリスト
     
     '''
-    race_data_01 = Soup.del_tag(soup.find('div', class_='RaceData01')).split('/')
-    race_data_02 = Soup.del_tag(soup.find('div', class_='RaceData02')).split()
+    race_info = []
+    del_letter = r'[\n発走天候馬場(): ]'
+    for info in Soup.del_tag(soup.find('div', class_='RaceData01')).split('/'):
+        race_info.append(re.sub(del_letter, '', info))
+    
+    print(race_info)
+    exit()
+    
+    race_info_02 = Soup.del_tag(soup.find('div', class_='RaceData02')).split()
 
-    print(race_data_01)
+    print(race_info_01)
     print()
-    print(race_data_02)
+    print(race_info_02)
     exit()
     return []
     
