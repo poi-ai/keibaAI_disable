@@ -1,9 +1,10 @@
+import itertools
 import csv
 import datetime
 import sys
 import time
 import re
-from common import Soup
+from common import Soup, WordChange as wc
 
 def main():
     # 引数の妥当性チェック
@@ -47,18 +48,53 @@ def get_info(soup):
     
     '''
     race_info = []
+    states_info = Soup.del_tag(soup.find('div', class_='RaceData01')).split('/')
     del_letter = r'[\n発走天候馬場(): ]'
-    for info in Soup.del_tag(soup.find('div', class_='RaceData01')).split('/'):
-        race_info.append(re.sub(del_letter, '', info))
-    
-    print(race_info)
-    exit()
-    
-    race_info_02 = Soup.del_tag(soup.find('div', class_='RaceData02')).split()
 
-    print(race_info_01)
-    print()
-    print(race_info_02)
+    # 発走時刻
+    race_info.append(states_info[0][1:6])
+    # 馬場情報切り出し
+    baba_info = re.sub(del_letter, '', states_info[1])
+    # ダート or 芝
+    race_info.append(baba_info[0])
+    # 距離と周りを分けるための要素番号
+    border = baba_info.find('m')
+    # 距離
+    race_info.append(baba_info[1:border])
+    # 回り(内回り、外回り、右回り、左回り、直線)
+    if len(baba_info[border+1:]) == 1:
+        race_info.append([baba_info[border+1:], ''])
+    else:
+        race_info.append(list(baba_info[border+1:], ''))
+    # 天候
+    race_info.append(re.sub(del_letter, '', states_info[2]))
+    # 馬場状態
+    race_info.append(re.sub(del_letter, '', states_info[3]))
+    
+    # リストの1次元化
+    # race_info = list(itertools.chain.from_iterable(race_info))
+    #print(race_info)
+
+    race_kind = Soup.del_tag(soup.find('div', class_='RaceData02')).split()
+    del_letter = r'[回日目頭本賞金:万円 ]'
+    # 開催回
+    race_info.append(re.sub(del_letter, '', race_kind[0]))
+    # 競馬場
+    race_info.append(race_kind[1])
+    # 開催o日目
+    race_info.append(re.sub(del_letter, '', race_kind[2]))
+    # 出走条件
+    race_info.append(wc.full_to_half(race_kind[3]))
+    # グレード
+    race_info.append(wc.full_to_half(race_kind[4]))
+    
+    if len(race_kind) == 8:
+        pass
+    elif len(race_kind) == 9:
+        pass
+    else:
+        raise ValueError('レース情報の取得に失敗')
+    print(race_info)
     exit()
     return []
     
