@@ -3,6 +3,7 @@ import csv
 import datetime
 import sys
 import time
+import tqdm
 import re
 from common import Soup, WordChange as wc
 
@@ -11,21 +12,25 @@ def main():
     START_RACE_DATE, END_RACE_DATE = argv_check()
 
     # 開始日の年と月を抽出
-    get_years = START_RACE_DATE[:4]
-    get_month = START_RACE_DATE[4:6]
+    years = START_RACE_DATE[:4]
+    month = START_RACE_DATE[4:6]
 
-    while get_years < END_RACE_DATE[:4] or (get_years == END_RACE_DATE[:4] and get_month <= END_RACE_DATE[4:6]):
+    # レースIDを格納するリスト
+    race_id_list = []
+
+    #while years < END_RACE_DATE[:4] or (years == END_RACE_DATE[:4] and month <= END_RACE_DATE[4:6]):
+    for _ in tqdm.tqdm(range((int(END_RACE_DATE[:4]) - int(years)) * 12  + int(END_RACE_DATE[4:6]) - int(month) + 1 )):
         # 開催月を取得
-        hold_list = get_date(get_years, get_month)
+        hold_list = get_date(years, month)
 
         # 開始日以前の開催日の切り落とし
-        if get_years == START_RACE_DATE[:4] or get_month == START_RACE_DATE[4:6]:
+        if years == START_RACE_DATE[:4] or month == START_RACE_DATE[4:6]:
             hold_list.append(START_RACE_DATE)
             hold_list.sort()
             hold_list = hold_list[hold_list.index(START_RACE_DATE) + 1:]
 
         # 終了日以降の開催日の切り落とし
-        if get_years == END_RACE_DATE[:4] or get_month == END_RACE_DATE[4:6]:
+        if years == END_RACE_DATE[:4] or month == END_RACE_DATE[4:6]:
             hold_list.append(END_RACE_DATE)
             hold_list.sort()
             if hold_list.count(END_RACE_DATE) == 2:
@@ -34,8 +39,16 @@ def main():
                 hold_list = hold_list[:hold_list.index(END_RACE_DATE)]
         
         # 開催日の各レース番号を取得
-        get_race(hold_list)
-        exit()
+        race_id_list.append(get_race(hold_list))
+
+        if month == '12':
+            years = str(int(years) + 1)
+            month = '1'
+        else:
+            month = str(int(month) + 1)
+        
+    print(race_id_list)
+    exit()
 
 def get_info(soup):
     '''HTMLデータから共通で使えるレース情報を抽出
@@ -129,16 +142,20 @@ def get_race(hold_list):
         hold_list(list):中央開催日の年月日(yyyyMMdd)を要素に持つlist
         
     '''
+    race_id_list = []
     for hold_date in hold_list:
         cource_url = 'https://race.netkeiba.com/top/race_list_sub.html?kaisai_date='\
                    + hold_date
 
         soup = Soup.get_soup(cource_url)
         links = soup.find_all('a')
+
         for link in links:
             race_url = link.get('href')
             if 'result' in race_url:
-                scraping_race(race_url[28:40])
+                race_id_list.append(race_url[28:40])
+
+    return race_id_list
         
 
 def get_date(years, month):
