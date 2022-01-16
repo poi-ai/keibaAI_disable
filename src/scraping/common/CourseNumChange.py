@@ -1,173 +1,61 @@
-def netkeiba(race_course_num):
-    if race_course_num == '01':
-        return '札幌'
-    elif race_course_num == '02':
-        return '函館'
-    elif race_course_num == '03':
-        return '福島'
-    elif race_course_num == '04':
-        return '新潟'
-    elif race_course_num == '05':
-        return '東京'
-    elif race_course_num == '06':
-        return '中山'
-    elif race_course_num == '07':
-        return '中京'
-    elif race_course_num == '08':
-        return '京都'
-    elif race_course_num == '09':
-        return '阪神'
-    elif race_course_num == '10':
-        return '小倉'
-    elif race_course_num == '30':
-        return '門別'
-    elif race_course_num == '31':
-        return '北見' # ～2006年
-    elif race_course_num == '32':
-        return '岩見沢' # ～2006年
-    elif race_course_num == '33':
-        return '帯広' # ～1997年。ばんえいではない
-    elif race_course_num == '34':
-        return '旭川' # ～2008年
-    elif race_course_num == '35':
-        return '盛岡'
-    elif race_course_num == '36':
-        return '水沢'
-    elif race_course_num == '37':
-        return '上山' # ～2003年
-    elif race_course_num == '38':
-        return '三条' # ～2001年
-    elif race_course_num == '39':
-        return '足利' # ～2003年
-    elif race_course_num == '40':
-        return '宇都宮' # ～2005年
-    elif race_course_num == '41':
-        return '高崎' # ～2004年
-    elif race_course_num == '42':
-        return '浦和'
-    elif race_course_num == '43':
-        return '船橋'
-    elif race_course_num == '44':
-        return '大井'
-    elif race_course_num == '45':
-        return '川崎'
-    elif race_course_num == '46':
-        return '金沢'
-    elif race_course_num == '47':
-        return '笠松'
-    elif race_course_num == '48':
-        return '名古屋'
-    elif race_course_num == '49':
-        return '紀三井寺' # ～1988年
-    elif race_course_num == '50':
-        return '園田'
-    elif race_course_num == '51':
-        return '姫路'
-    elif race_course_num == '52':
-        return '益田' # ～2002年
-    elif race_course_num == '53':
-        return '福山' # ～2013年
-    elif race_course_num == '54':
-        return '高知'
-    elif race_course_num == '55':
-        return '佐賀'
-    elif race_course_num == '56':
-        return '荒尾' # ～2011年
-    elif race_course_num == '57':
-        return '中津' # ～2001年
-    elif race_course_num == '58':
-        return '札幌' # ～2009年。地方競馬
-    elif race_course_num == '59':
-        return '函館' # ～1997年。地方競馬
-    elif race_course_num == '60':
-        return '新潟' # ～2002年。地方競馬
-    elif race_course_num == '61':
-        return '中京' # ～2002年。地方競馬
-    elif race_course_num == '62':
-        return '春木' # ～1974年
-    elif race_course_num == '63':
-        return '北見' # ～2006年。ばんえい
-    elif race_course_num == '64':
-        return '岩見沢' # ～2006年。ばんえい
-    elif race_course_num == '65':
-        return '帯広'
-    elif race_course_num == '66':
-        return '旭川' # ～2006年。ばんえい
+def netkeiba(str):
+    '''netkeiba.comのDBで使用されている競馬場コードを変換するメソッド
+       ばんえい競馬は「競馬場名+(ば)」、中央と地方両方行われていた競馬場では、
+       地方を「競馬場名+(地)」で表記
+
+    Args:
+        str(str):競馬場名 あるいは 競馬場コード
+
+    Returns:
+        引数が競馬場名の場合は競馬場コード
+        引数が競馬上コードの場合は競馬場名
+    
+    '''
+    COURSE = {'札幌': '01', '函館': '02', '福島': '03', '新潟': '04', '東京': '05',\
+              '中山': '06', '中京': '07', '京都': '08', '小倉': '09', '門別': '30',\
+              '北見': '31', '岩見沢': '32', '帯広': '33', '旭川': '34', '盛岡': '35',\
+              '水沢': '36', '上山': '37', '三条': '38', '足利': '39', '宇都宮': '40',\
+              '高崎': '41', '浦和': '42', '船橋': '43', '大井': '44', '川崎': '45',\
+              '金沢': '46', '笠松': '47', '名古屋': '48', '紀三井寺': '49', '園田': '50',\
+              '姫路': '51', '益田': '52', '福山': '53', '高知': '54', '佐賀': '55',\
+              '荒尾': '56', '中津': '57', '札幌(地)': '58', '函館(地)': '59', '新潟(地)': '60',\
+              '中京(地)': '61', '春木': '62', '北見(ば)': '63', '岩見沢(ば)': '64', '帯広(ば)': '65',\
+              '旭川(ば)': '66'}
+
+    if str in COURSE:
+        return COURSE[str]
+    
+    if str in COURSE.values():
+        return [i for i, v in COURSE.items() if v == str][0]
 
     raise ValueError("競馬場コード変換で例外が発生しました")
 
-def rakuten(race_course_num):
-    if race_course_num == '01':
-        return '北見' # ～2006年。ばんえい
-    elif race_course_num == '02':
-        return '岩見沢' # ～2006年。ばんえい
-    elif race_course_num == '03':
-        return '帯広'
-    elif race_course_num == '04':
-        return '旭川' # ～2006年。ばんえい
-    elif race_course_num == '05':
-        return '岩見沢' # ～2006年
-    elif race_course_num == '06':
-        return '帯広' # ～1997年。ばんえいではない
-    elif race_course_num == '07':
-        return '旭川' # ～2008年。
-    elif race_course_num == '08':
-        return '札幌' # ～2009年。地方競馬
-    elif race_course_num == '09':
-        return '函館' # ～1997年。地方競馬
-    elif race_course_num == '10':
-        return '盛岡'
-    elif race_course_num == '11':
-        return '水沢'
-    elif race_course_num == '12':
-        return '上山' # ～2003年
-    elif race_course_num == '13':
-        return '新潟' # ～2002年。地方競馬
-    elif race_course_num == '14':
-        return '三条' # ～2001年
-    elif race_course_num == '15':
-        return '足利' # ～2003年
-    elif race_course_num == '16':
-        return '宇都宮' # ～2005年
-    elif race_course_num == '17':
-        return '高崎' # ～2004年
-    elif race_course_num == '18':
-        return '浦和'
-    elif race_course_num == '19':
-        return '船橋'
-    elif race_course_num == '20':
-        return '大井'
-    elif race_course_num == '21':
-        return '川崎'
-    elif race_course_num == '22':
-        return '金沢'
-    elif race_course_num == '23':
-        return '笠松'
-    elif race_course_num == '24':
-        return '名古屋'
-    elif race_course_num == '25':
-        return '中京' # ～2002年。地方競馬
-    elif race_course_num == '26':
-        return '紀三井寺' # ～1988年
-    elif race_course_num == '27':
-        return '園田'
-    elif race_course_num == '28':
-        return '姫路'
-    elif race_course_num == '29':
-        return '益田' # ～2002年
-    elif race_course_num == '30':
-        return '福山' # ～2013年
-    elif race_course_num == '31':
-        return '高知'
-    elif race_course_num == '32':
-        return '佐賀'
-    elif race_course_num == '33':
-        return '荒尾'
-    elif race_course_num == '34':
-        return '中津' # ～2001年
-    elif race_course_num == '35':
-        return '春木' # ～1974年
-    elif race_course_num == '36':
-        return '門別'
+def rakuten(str):
+    '''楽天競馬のDBで使用されている競馬場コードを変換するメソッド
+       ばんえい競馬は「競馬場名+ば」、中央と地方両方行われていた競馬場では、
+       地方を「競馬場名+地」で表記
+       
+    Args:
+        str(str):競馬場名 あるいは 競馬場コード
+
+    Returns:
+        引数が競馬場名の場合は競馬場コード
+        引数が競馬上コードの場合は競馬場名
+    
+    '''
+    COURSE = {'北見ば': '01', '岩見沢ば': '02', '帯広ば': '03', '旭川ば': '04', '岩見沢': '05',\
+              '帯広': '06', '旭川': '07', '札幌地': '08', '函館地': '09', '盛岡': '10',\
+              '水沢': '11', '上沢': '12', '新潟地': '13', '三条': '14', '足利': '15',\
+              '宇都宮': '16', '高崎': '17', '浦和': '18', '船橋': '19', '大井': '20',\
+              '川崎': '21', '金沢': '22', '笠松': '23', '名古屋': '24', '中京地': '25',\
+              '紀三井寺': '26', '園田': '27', '姫路': '28', '益田': '29', '福山': '30',\
+              '高知': '31', '佐賀': '32', '荒尾': '33', '中津': '34', '春木': '35',\
+              '門別': '36'}
+
+    if str in COURSE:
+        return COURSE[str]
+    
+    if str in COURSE.values():
+        return [i for i, v in COURSE.items() if v == str][0]
     
     raise ValueError("競馬場コード変換で例外が発生しました")
