@@ -1,10 +1,11 @@
 import itertools
 import csv
 import datetime
+import pandas as pd
+import re
 import sys
 import time
 import tqdm
-import re
 from common import Soup, WordChange as wc
 
 def main():
@@ -15,10 +16,10 @@ def main():
     years = START_RACE_DATE[:4]
     month = START_RACE_DATE[4:6]
 
+    print('レースIDを取得します。\n')
     # レースIDを格納するリスト
     race_id_list = []
 
-    #while years < END_RACE_DATE[:4] or (years == END_RACE_DATE[:4] and month <= END_RACE_DATE[4:6]):
     for _ in tqdm.tqdm(range((int(END_RACE_DATE[:4]) - int(years)) * 12  + int(END_RACE_DATE[4:6]) - int(month) + 1 )):
         # 開催月を取得
         hold_list = get_date(years, month)
@@ -41,13 +42,21 @@ def main():
         # 開催日の各レース番号を取得
         race_id_list.append(get_race(hold_list))
 
+        # 翌月へ
         if month == '12':
             years = str(int(years) + 1)
             month = '1'
         else:
             month = str(int(month) + 1)
-        
-    print(race_id_list)
+    
+    # 一元化
+    race_id_list = list(itertools.chain.from_iterable(race_id_list))
+
+    print('\n取得対象のレース数は' + str(len(race_id_list)) + 'です。\nレースデータの取得を開始します。')
+
+    for race_id in tqdm.tqdm(race_id_list):
+        scraping_race(race_id)
+
     exit()
 
 def get_info(soup):
@@ -112,36 +121,38 @@ def get_info(soup):
     return []
     
 
-def scraping_race(race_num):
+def scraping_race(race_id):
     '''レース番号からレース情報・結果をスクレイピング
 
     Args:
-        race_num(str):レース番号。10桁(西暦+開催回+開催日+競馬場コード)
+        race_id(str):レース番号。10桁(西暦+開催回+開催日+競馬場コード)
+
+    Returns:
+        df(pandas.DataFrame):レース情報と各馬の情報・結果をもったデータ
     
     '''
-    # レース馬柱のURLからHTMLデータをスクレイピング
-    info_url = 'https://race.netkeiba.com/race/shutuba_past.html?race_id='\
-                + race_num
+    # レース結果のURLからHTMLデータをスクレイピング
+    result_url = 'https://db.netkeiba.com/race/' + race_id
+
+    df = pd.read_html(result_url)[0]
     
-    soup = Soup.get_soup(info_url)
-    
-    race_info = get_info(soup)
-    exit()
+    soup = Soup.get_soup(result_url)
 
-    # TODO レース結果からHTMLデータをスクレイピング
-    result_url = 'https://race.netkeiba.com/race/result.html?race_id='\
-                 + race_num
+    # TODO データ加工
 
-
-    exit()
+    # return df
 
 def get_race(hold_list):
     '''対象年月日のレース番号を取得
 
     Args:
-        hold_list(list):中央開催日の年月日(yyyyMMdd)を要素に持つlist
+        hold_list(list):中央開催日の年月日(yyyyMMdd)を要素に持つリスト
+
+    Returns:
+        race_id_list(list):対象年月日のレースIDを要素に持つリスト
         
     '''
+    # 各開催日からレースIDをリストに代入
     race_id_list = []
     for hold_date in hold_list:
         cource_url = 'https://race.netkeiba.com/top/race_list_sub.html?kaisai_date='\
@@ -156,7 +167,6 @@ def get_race(hold_list):
                 race_id_list.append(race_url[28:40])
 
     return race_id_list
-        
 
 def get_date(years, month):
     '''中央競馬の開催日を取得
