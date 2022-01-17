@@ -70,7 +70,7 @@ def get_info(soup):
     
     '''
     race_info = []
-    states_info = Soup.del_tag(soup.find('div', class_='RaceData01')).split('/')
+    states_info = soup.find('div', class_='RaceData01').get_text(strip = False).split('/')
     del_letter = r'[\n発走天候馬場(): ]'
 
     # 発走時刻
@@ -97,7 +97,7 @@ def get_info(soup):
     # race_info = list(itertools.chain.from_iterable(race_info))
     #print(race_info)
 
-    race_kind = Soup.del_tag(soup.find('div', class_='RaceData02')).split()
+    race_kind = soup.find('div', class_='RaceData02').get_text(strip = False).split()
     del_letter = r'[回日目頭本賞金:万円 ]'
     # 開催回
     race_info.append(re.sub(del_letter, '', race_kind[0]))
