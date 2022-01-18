@@ -2,7 +2,7 @@
 ![Lines of code](https://img.shields.io/tokei/lines/github/poi-ai/keibaAI)
 ![Relative date](https://img.shields.io/date/1640011380?label=first%20commit)
 ![GitHub last commit](https://img.shields.io/github/last-commit/poi-ai/keibaAI)
-![GitHub commit activity](https://img.shields.io/github/commit-activity/m/poi-ai/keibaai)
+![GitHub commit activity](https://img.shields.io/github/commit-activity/m/poi-ai/keibaai)<br>
 [![Twitter](img/twitter.png)](https://twitter.com/intent/tweet?text=poi-ai/keibaAI&url=https://github.com/poi-ai/keibaAI)
 [![はてなブックマーク](img/hatebu.png)](https://b.hatena.ne.jp/entry/s/github.com/poi-ai/keibaAI)
 [![Facebook](img/facebook.png)](https://www.facebook.com/sharer/sharer.php?u=https://github.com/poi-ai/keibaAI)
@@ -46,5 +46,18 @@ RやScalaでのAI開発は予定しておりません(ごめんなさい。。�
 
 ※開始日、終了日はyyyyMMddの形で入力してください。
 
+* リアルタイムオッズデータ
 
+稼働日当日の単勝・複勝オッズを記録、CSVファイルとして保存を行うプログラムです。
+
+ソースコードの保管/起動場所はHeroku(無料の海外サーバー)、CSVの保管場所はGoogle Driveを想定しております。
+
+`$ cd src¥scraping`
+
+`$ python surveillance.py`
+
+詳細は[Wiki](https://github.com/poi-ai/keibaAI/wiki)に書いていますので、そちらをご覧ください。
+
+``
+[]()
 -->
