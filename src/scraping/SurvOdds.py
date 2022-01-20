@@ -3,10 +3,11 @@ from common import Soup
 
 def main():
     # 日本時間(JST)の環境で実行する場合はこっち
-    TODAY = datetime.datetime.today().strftime('%Y%m%d')
+    TODAY = datetime.datetime.now().strftime('%Y%m%d')
 
     # herokuなど協定世界時(UTC)の環境で日本時間に合わせる場合はこっち
     # TODAY = (datetime.datetime.now() + datetime.timedelta(hours = 9)).strftime('%Y%m%d')
+
 
     TODAY = '20220115'
     TODAY = '20220122'
@@ -30,12 +31,21 @@ def main():
     # レース終了フラグ(0:未、1:監視中、-1：済)
     rec_flag = [0 for _ in range(len(race_id))]
 
-    # TODO フラグ、レース時間から監視するレースを選ぶ 
+    while True:
+        rec_flag = target_check(rec_flag, get_race_time(TODAY))
+        exit()
+
+def target_check(rec_flag, time_schedule):
+    NOW = datetime.datetime.now().strftime('%Y%m%d')
+    # TODO 
+    # get_odds()
+    return rec_flag
 
 def get_soup(TODAY):
     return Soup.get_soup('https://race.netkeiba.com/top/race_list_sub.html?kaisai_date=' + TODAY)
 
 def get_race_time(TODAY):
+    NOW = datetime.datetime.now().strftime('%Y%m%d')
     soup = get_soup(TODAY)
 
     race_time = []
@@ -47,8 +57,7 @@ def get_race_time(TODAY):
     for time in times:
         race_time.append(time.get_text(strip = False)[:5])
 
-    print(race_time)
-    exit()
+    return race_time
 
 if __name__ == '__main__':
     main()
