@@ -8,11 +8,7 @@ def main():
     # herokuなど協定世界時(UTC)の環境で日本時間に合わせる場合はこっち
     # TODAY = (datetime.datetime.now() + datetime.timedelta(hours = 9)).strftime('%Y%m%d')
 
-
-    TODAY = '20220115'
-    TODAY = '20220122'
-
-    soup = get_soup(TODAY)
+    soup = Soup.get_soup('https://race.netkeiba.com/top/race_list_sub.html?kaisai_date=' + TODAY)
     race_id = []
     
     # aタグ取得
@@ -20,6 +16,7 @@ def main():
 
     # 空(= 開催なし)の場合 
     if links == []:
+        print('本日は中央開催はありません')
         exit()
     
     # レースURLからIDのみ抽出
@@ -27,26 +24,45 @@ def main():
         a_url = link.get('href')
         if 'shutuba.html' in a_url:
             race_id.append(a_url[29:41])
+        elif 'result.html' in a_url:
+            race_id.append(a_url[28:40])
 
     # レース終了フラグ(0:未、1:監視中、-1：済)
     rec_flag = [0 for _ in range(len(race_id))]
 
     while True:
-        rec_flag = target_check(rec_flag, get_race_time(TODAY))
-        exit()
+        rec_flag = target_check(rec_flag, get_race_time(TODAY), race_id, TODAY)
 
-def target_check(rec_flag, time_schedule):
-    NOW = datetime.datetime.now().strftime('%Y%m%d')
-    # TODO 
+        # 開催終了チェック
+        if not 0 in rec_flag and not 1 in rec_flag:
+            print('本日のレースは終了しました')
+            break
+
+        print(rec_flag)
+        print(get_race_time(TODAY))
+        print(race_id)
+
+
+def target_check(rec_flag, time_schedule, race_id, TODAY):
+    NOW = datetime.datetime.now()
+
+    for i in range(len(rec_flag)):
+        if rec_flag[i] == 0:
+            print(time_schedule[i])
+            race_time = datetime.datetime.strptime(TODAY + time_schedule[i], '%Y%m%d%H:%M')
+            remaining_time = (race_time - NOW).seconds
+            if remaining_time < -300:
+                rec_flag[i] = -1
+            
+
+            exit()
+        elif rec_flag[i] == 1:
+            pass
     # get_odds()
     return rec_flag
 
-def get_soup(TODAY):
-    return Soup.get_soup('https://race.netkeiba.com/top/race_list_sub.html?kaisai_date=' + TODAY)
-
 def get_race_time(TODAY):
-    NOW = datetime.datetime.now().strftime('%Y%m%d')
-    soup = get_soup(TODAY)
+    soup = Soup.get_soup('https://race.netkeiba.com/top/race_list_sub.html?kaisai_date=' + TODAY)
 
     race_time = []
 
