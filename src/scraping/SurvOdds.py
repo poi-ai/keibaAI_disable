@@ -11,7 +11,7 @@ def main():
     # HTML取得
     soup = Soup.get_soup('https://race.netkeiba.com/top/race_list_sub.html?kaisai_date=' + TODAY)
     
-    # TODO list型からDataFrame型へ差し替え
+    # 稼働日のレースIDを格納するリスト
     race_id = []
     
     # aタグ取得
@@ -33,7 +33,11 @@ def main():
             race_id.append(a_url[28:40])
 
     # レース記録フラグ(0:未、1:監視中、-1：済)
-    rec_flag = [0 for _ in range(len(race_id))]
+    rec_flag = pd.DataFrame(index = range(len(race_id), 
+                            columns = ['before30', 'before20', 'before10',
+                                       'before5', 'before4', 'before3',
+                                       'before2', 'before1', 'confirm'])
+    rec_flag.fillna(0, inplace = True)
 
     while True:
         rec_flag = target_check(rec_flag, get_race_time(TODAY), race_id, TODAY)
