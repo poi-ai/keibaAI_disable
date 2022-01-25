@@ -1,9 +1,11 @@
 import datetime
+import pandas as pd
 from common import Soup
 
 def main():
     # 日本時間(JST)の環境で実行する場合はこっち
     TODAY = datetime.datetime.now().strftime('%Y%m%d')
+    TODAY = '20220123'
 
     # herokuなど協定世界時(UTC)の環境で日本時間に合わせる場合はこっち
     # TODAY = (datetime.datetime.now() + datetime.timedelta(hours = 9)).strftime('%Y%m%d')
@@ -33,24 +35,18 @@ def main():
             race_id.append(a_url[28:40])
 
     # レース記録フラグ(0:未、1:監視中、-1：済)
-    rec_flag = pd.DataFrame(index = range(len(race_id), 
-                            columns = ['before30', 'before20', 'before10',
-                                       'before5', 'before4', 'before3',
-                                       'before2', 'before1', 'confirm'])
+    rec_flag = pd.DataFrame(index = race_id, 
+                            columns = ['10min', '9min', '8min', '7min', '6min'
+                                       '5min', '4min', '3min', '2min', '1min', 'confirm'])
     rec_flag.fillna(0, inplace = True)
 
     while True:
-        rec_flag = target_check(rec_flag, get_race_time(TODAY), race_id, TODAY)
+        rec_flag = target_check(rec_flag, get_race_time(TODAY), TODAY)
 
         # 開催終了チェック
         if not 0 in rec_flag and not 1 in rec_flag:
             print('本日のレースは終了しました')
-            break
-
-        print(rec_flag)
-        print(get_race_time(TODAY))
-        print(race_id)
-
+            exit()
 
 def target_check(rec_flag, time_schedule, race_id, TODAY):
     # 現在時刻取得(JST環境)
@@ -75,7 +71,7 @@ def target_check(rec_flag, time_schedule, race_id, TODAY):
     # get_odds()
     return rec_flag
 
-def get_odds()
+def get_odds():
     pass
 
 def get_race_time(TODAY):
