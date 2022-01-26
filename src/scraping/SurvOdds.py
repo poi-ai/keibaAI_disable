@@ -34,21 +34,24 @@ def main():
         elif 'result.html' in a_url:
             race_id.append(a_url[28:40])
 
-    # レース記録フラグ(0:未、1:監視中、-1：済)
+    # レース記録フラグ(0:未、1:済)
     rec_flag = pd.DataFrame(index = race_id, 
                             columns = ['10min', '9min', '8min', '7min', '6min'
                                        '5min', '4min', '3min', '2min', '1min', 'confirm'])
     rec_flag.fillna(0, inplace = True)
 
     while True:
-        rec_flag = target_check(rec_flag, get_race_time(TODAY), TODAY)
+        rec_flag = target_check(rec_flag, TODAY)
 
         # 開催終了チェック
         if not 0 in rec_flag and not 1 in rec_flag:
             print('本日のレースは終了しました')
             exit()
 
-def target_check(rec_flag, time_schedule, race_id, TODAY):
+def target_check(rec_flag, TODAY):
+    # レース時刻取得
+    time_schedule = get_race_time(TODAY)
+
     # 現在時刻取得(JST環境)
     NOW = datetime.datetime.now()
 
@@ -56,19 +59,17 @@ def target_check(rec_flag, time_schedule, race_id, TODAY):
     # NOW = datetime.datetime.now() + datetime.timedelta(hours = 9)
 
     # レース記録フラグを探索
-    for i in range(len(rec_flag)):
-        # 記録前の場合
-        if rec_flag[i] == 0:
-            print(time_schedule[i])
-            race_time = datetime.datetime.strptime(TODAY + time_schedule[i], '%Y%m%d%H:%M')
-            remaining_time = (race_time - NOW).seconds
-            if remaining_time < -300:
-                rec_flag[i] = -1
-            exit()
-        # 記録中の場合
-        elif rec_flag[i] == 1:
-            pass
-    # get_odds()
+    for idx in rec_flag.index:
+        for clm in rec_flag:
+            # 記録前の場合
+            if rec_flag[clm][idx] == 0:
+                race_time = datetime.datetime.strptime(TODAY + time_schedule[i], '%Y%m%d%H:%M')
+                remaining_time = (race_time - NOW).seconds
+                
+                if remaining_time < -300:
+                    rec_flag[i] = -1
+                exit()
+            # get_odds()
     return rec_flag
 
 def get_odds():
