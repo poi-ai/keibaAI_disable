@@ -34,7 +34,7 @@ def main():
         elif 'result.html' in a_url:
             race_id.append(a_url[28:40])
 
-    # レース記録フラグ(0:未、1:監視中、-1：済)
+    # レース記録フラグ(0:未、1：済)
     rec_flag = pd.DataFrame(index = race_id, 
                             columns = ['10min', '9min', '8min', '7min', '6min'
                                        '5min', '4min', '3min', '2min', '1min', 'confirm'])
@@ -43,12 +43,13 @@ def main():
     while True:
         rec_flag = target_check(rec_flag, get_race_time(TODAY), TODAY)
 
+        exit()
         # 開催終了チェック
         if not 0 in rec_flag and not 1 in rec_flag:
             print('本日のレースは終了しました')
             exit()
 
-def target_check(rec_flag, time_schedule, race_id, TODAY):
+def target_check(rec_flag, time_schedule, TODAY):
     # 現在時刻取得(JST環境)
     NOW = datetime.datetime.now()
 
@@ -56,7 +57,10 @@ def target_check(rec_flag, time_schedule, race_id, TODAY):
     # NOW = datetime.datetime.now() + datetime.timedelta(hours = 9)
 
     # レース記録フラグを探索
-    for i in range(len(rec_flag)):
+    for i in rec_flag:
+
+        print(i)
+        exit()
         # 記録前の場合
         if rec_flag[i] == 0:
             print(time_schedule[i])
