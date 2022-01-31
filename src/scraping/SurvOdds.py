@@ -57,6 +57,8 @@ def target_check(rec_flag, TODAY):
 
     # 現在時刻取得(UTC環境)
     # NOW = datetime.datetime.now() + datetime.timedelta(hours = 9)
+    
+    # TODO 順延時のリカバリ処理
 
     # レース記録フラグを探索
     for idx in rec_flag.index:
@@ -66,8 +68,30 @@ def target_check(rec_flag, TODAY):
                 race_time = datetime.datetime.strptime(TODAY + time_schedule[i], '%Y%m%d%H:%M')
                 remaining_time = (race_time - NOW).seconds
                 
-                if remaining_time < -300:
-                    rec_flag[i] = -1
+                # TODO 記録済みフラグと記録処理
+                if clm = '10min':
+                    pass
+                elif clm = '9min':
+                    pass
+                elif clm = '8min':
+                    pass
+                elif clm = '7min':
+                    pass
+                elif clm = '6min':
+                     pass
+                elif clm = '5min':
+                    pass
+                elif clm = '4min':
+                    pass
+                elif clm = '3min':
+                    pass
+                elif clm = '2min':
+                    pass
+                elif clm = '1min':
+                    pass
+                else:
+                    pass
+ 
                 exit()
             # get_odds()
     return rec_flag
