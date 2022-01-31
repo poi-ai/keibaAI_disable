@@ -65,29 +65,29 @@ def target_check(rec_flag, TODAY):
         for clm in rec_flag:
             # 記録前の場合
             if rec_flag[clm][idx] == 0:
-                race_time = datetime.datetime.strptime(TODAY + time_schedule[i], '%Y%m%d%H:%M')
+                race_time = datetime.datetime.strptime(TODAY + time_schedule[idx], '%Y%m%d%H:%M')
                 remaining_time = (race_time - NOW).seconds
                 
                 # TODO 記録済みフラグと記録処理
-                if clm = '10min':
+                if clm == '10min':
                     pass
-                elif clm = '9min':
+                elif clm == '9min':
                     pass
-                elif clm = '8min':
+                elif clm == '8min':
                     pass
-                elif clm = '7min':
+                elif clm == '7min':
                     pass
-                elif clm = '6min':
+                elif clm == '6min':
                      pass
-                elif clm = '5min':
+                elif clm == '5min':
                     pass
-                elif clm = '4min':
+                elif clm == '4min':
                     pass
-                elif clm = '3min':
+                elif clm == '3min':
                     pass
-                elif clm = '2min':
+                elif clm == '2min':
                     pass
-                elif clm = '1min':
+                elif clm == '1min':
                     pass
                 else:
                     pass
