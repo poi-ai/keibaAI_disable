@@ -91,8 +91,10 @@ def target_check(rec_flag):
     return rec_flag
 
 def get_odds(rec_flag, race_id):
-    # TODO soup = Soup.get_soup('' + race_id + '')
-    pass
+    URL = 'https://race.netkeiba.com/odds/index.html?type=b1&race_id=' + race_id + '&rf=shutuba_submenu'
+    df = pd.read_html(URL)[0]
+    print(df)
+    # return rec_flag, True
 
 def get_race_time():
     soup = Soup.get_soup('https://race.netkeiba.com/top/race_list_sub.html?kaisai_date=' + TODAY)
@@ -109,6 +111,9 @@ def get_race_time():
     return race_time
 
 if __name__ == '__main__':
+    get_odds(0, '202205010201')
+
+    exit()
     # 時間取得。日本時間(JST)の環境で実行する場合はこっち
     TODAY = datetime.datetime.now().strftime('%Y%m%d')
 
