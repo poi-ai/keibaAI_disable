@@ -36,8 +36,8 @@ def main():
 
     # レース記録フラグ(0:未、1:済)
     rec_flag = pd.DataFrame(index = race_id, 
-                            columns = ['10', '9', '8', '7', '6'
-                                       '5', '4', '3', '2', '1', 'confirm'])
+                            columns = ['10', '9', '8', '7', '6', '5', '4',
+                                       '3', '2', '1', 'confirm', 'schedule_time'])
     rec_flag.fillna(0, inplace = True)
 
     while True:
@@ -63,7 +63,10 @@ def target_check(rec_flag, TODAY):
 
         target_clm = ''
         race_time = datetime.datetime.strptime(TODAY + time_schedule[idx], '%Y%m%d%H:%M')
+        before_schedule_time = datetime.datetime.strptime(TODAY + rec_flag['schedule_time'][idx], '%Y%m%d%H:%M')
         remaining_time = (race_time - NOW).seconds
+        # timedeltaにminutesはない？
+        diff_time = (race_time - before_schedule_time).minutes
         
         for clm in rec_flag:
             if rec_flag[clm][idx] == 0:
@@ -72,15 +75,25 @@ def target_check(rec_flag, TODAY):
                 
         if target_clm == 'confirm':
             if remaining_time <= -300:
-                rec_flag[clm][idx] = get_odds()
+                rec_flag[clm][idx], success_flag = get_odds()
                 # TODO CSV書き込み、レコード削除
         else:
             if target_clm != 'comfirm':
-                # TODO リカバリ処理
+                if diff_time < -60:
+                    # TODO レース時間が前倒しになった場合(ない？)
+                    pass
+                elif diff_time > 60:
+                    # TODO レース時間が後ろ倒しになった場合
+                    pass
                 
-            if (int(clm) - 1) * 60 < remining_time <= int(clm) * 60:
+            if (int(clm) - 1) * 60 < remaining_time <= int(clm) * 60:
                 # TODO オッズ取得
-                # rec_flag, success_flag = get_odds(rec_flag, idx)
+                rec_flag[clm][idx], success_flag = get_odds(rec_flag, idx)
+                pass
+        
+        # 記録したらレース予定時刻を更新
+        if success_flag:
+            rec_flag['schedule_time'][idx] = NOW.strftime('%H:%M')
         
     return rec_flag
 
