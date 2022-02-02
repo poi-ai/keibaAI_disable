@@ -36,8 +36,8 @@ def main():
 
     # レース記録フラグ(0:未、1:済)
     rec_flag = pd.DataFrame(index = race_id, 
-                            columns = ['10min', '9min', '8min', '7min', '6min'
-                                       '5min', '4min', '3min', '2min', '1min', 'confirm'])
+                            columns = ['10', '9', '8', '7', '6'
+                                       '5', '4', '3', '2', '1', 'confirm'])
     rec_flag.fillna(0, inplace = True)
 
     while True:
@@ -63,25 +63,29 @@ def target_check(rec_flag, TODAY):
 
         target_clm = ''
         race_time = datetime.datetime.strptime(TODAY + time_schedule[idx], '%Y%m%d%H:%M')
-
+        remaining_time = (race_time - NOW).seconds
+        
         for clm in rec_flag:
             if rec_flag[clm][idx] == 0:
                 target_clm = clm
                 break
-
-        if target_clm == '10min':
-            # TODO 開始チェック
-            pass
-        elif target_clm == 'confirm':
-            # TODO
-            pass
-        elif target_clm != '':
-            # TODO 順延時のリカバリ処理
-            pass
+                
+        if target_clm == 'confirm':
+            if remaining_time <= -300:
+                rec_flag[clm][idx] = get_odds()
+                # TODO CSV書き込み、レコード削除
+        else:
+            if target_clm != 'comfirm':
+                # TODO リカバリ処理
+                
+            if (int(clm) - 1) * 60 < remining_time <= int(clm) * 60:
+                # TODO オッズ取得
+                # rec_flag, success_flag = get_odds(rec_flag, idx)
         
     return rec_flag
 
-def get_odds():
+def get_odds(rec_flag, race_id):
+    # TODO soup = Soup.get_soup('' + race_id + '')
     pass
 
 def get_race_time(TODAY):
