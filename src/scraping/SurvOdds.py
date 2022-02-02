@@ -2,14 +2,7 @@ import datetime
 import pandas as pd
 from common import Soup
 
-def main():
-    # 日本時間(JST)の環境で実行する場合はこっち
-    TODAY = datetime.datetime.now().strftime('%Y%m%d')
-    TODAY = '20220123'
-
-    # herokuなど協定世界時(UTC)の環境で日本時間に合わせる場合はこっち
-    # TODAY = (datetime.datetime.now() + datetime.timedelta(hours = 9)).strftime('%Y%m%d')
-    
+def main():    
     # HTML取得
     soup = Soup.get_soup('https://race.netkeiba.com/top/race_list_sub.html?kaisai_date=' + TODAY)
     
@@ -41,16 +34,16 @@ def main():
     rec_flag.fillna(0, inplace = True)
 
     while True:
-        rec_flag = target_check(rec_flag, TODAY)
+        rec_flag = target_check(rec_flag)
 
         # 開催終了チェック
         if not 0 in rec_flag and not 1 in rec_flag:
             print('本日のレースは終了しました')
             exit()
 
-def target_check(rec_flag, TODAY):
+def target_check(rec_flag):
     # レース時刻取得
-    time_schedule = get_race_time(TODAY)
+    time_schedule = get_race_time()
 
     # レース記録フラグを探索
     for idx in rec_flag.index:
@@ -101,7 +94,7 @@ def get_odds(rec_flag, race_id):
     # TODO soup = Soup.get_soup('' + race_id + '')
     pass
 
-def get_race_time(TODAY):
+def get_race_time():
     soup = Soup.get_soup('https://race.netkeiba.com/top/race_list_sub.html?kaisai_date=' + TODAY)
 
     race_time = []
@@ -116,4 +109,14 @@ def get_race_time(TODAY):
     return race_time
 
 if __name__ == '__main__':
+    # 時間取得。日本時間(JST)の環境で実行する場合はこっち
+    TODAY = datetime.datetime.now().strftime('%Y%m%d')
+
+    # 時間取得herokuなど協定世界時(UTC)の環境で日本時間に合わせる場合はこっち
+    # TODAY = (datetime.datetime.now() + datetime.timedelta(hours = 9)).strftime('%Y%m%d')
+    
+    # 実装確認用に中央開催日の日付を代入
+    TODAY = '20220123'
+    
+    # メイン処理
     main()
