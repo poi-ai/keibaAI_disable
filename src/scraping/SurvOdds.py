@@ -52,48 +52,33 @@ def target_check(rec_flag, TODAY):
     # レース時刻取得
     time_schedule = get_race_time(TODAY)
 
-    # 現在時刻取得(JST環境)
-    NOW = datetime.datetime.now()
-
-    # 現在時刻取得(UTC環境)
-    # NOW = datetime.datetime.now() + datetime.timedelta(hours = 9)
-    
-    # TODO 順延時のリカバリ処理
-
     # レース記録フラグを探索
     for idx in rec_flag.index:
+
+        # 現在時刻取得(JST環境)
+        NOW = datetime.datetime.now()
+
+        # 現在時刻取得(UTC環境)
+        # NOW = datetime.datetime.now() + datetime.timedelta(hours = 9)
+
+        target_clm = ''
+        race_time = datetime.datetime.strptime(TODAY + time_schedule[idx], '%Y%m%d%H:%M')
+
         for clm in rec_flag:
-            # 記録前の場合
             if rec_flag[clm][idx] == 0:
-                race_time = datetime.datetime.strptime(TODAY + time_schedule[idx], '%Y%m%d%H:%M')
-                remaining_time = (race_time - NOW).seconds
-                
-                # TODO 記録済みフラグと記録処理
-                if clm == '10min':
-                    pass
-                elif clm == '9min':
-                    pass
-                elif clm == '8min':
-                    pass
-                elif clm == '7min':
-                    pass
-                elif clm == '6min':
-                     pass
-                elif clm == '5min':
-                    pass
-                elif clm == '4min':
-                    pass
-                elif clm == '3min':
-                    pass
-                elif clm == '2min':
-                    pass
-                elif clm == '1min':
-                    pass
-                else:
-                    pass
- 
-                exit()
-            # get_odds()
+                target_clm = clm
+                break
+
+        if target_clm == '10min':
+            # TODO 開始チェック
+            pass
+        elif target_clm == 'confirm':
+            # TODO
+            pass
+        elif target_clm != '':
+            # TODO 順延時のリカバリ処理
+            pass
+        
     return rec_flag
 
 def get_odds():
