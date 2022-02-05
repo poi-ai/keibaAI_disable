@@ -1,6 +1,8 @@
 import datetime
+import time
 import pandas as pd
 from common import Soup
+from requests_html import HTMLSession
 
 def main():    
     # HTML取得
@@ -92,8 +94,15 @@ def target_check(rec_flag):
 
 def get_odds(rec_flag, race_id):
     URL = 'https://race.netkeiba.com/odds/index.html?type=b1&race_id=' + race_id + '&rf=shutuba_submenu'
-    df = pd.read_html(URL)[0]
-    print(df)
+    r = session.get(URL)
+    r.html.render()
+
+    tansyo = pd.read_html(r.html.html)[0].iloc[:, [1, 5]]
+    fukusyo = pd.read_html(r.html.html)[1]['オッズ'].str.split(' - ', expand = True)
+
+    odds = pd.concat([tansyo, fukusyo], axis = 1)
+    odds.rename(columns={'オッズ': '単勝', 0: '複勝下限', 1: '複勝上限'}, inplace=True)
+    print(odds)
     # return rec_flag, True
 
 def get_race_time():
@@ -111,6 +120,7 @@ def get_race_time():
     return race_time
 
 if __name__ == '__main__':
+    session = HTMLSession()
     get_odds(0, '202205010201')
 
     exit()
@@ -120,6 +130,9 @@ if __name__ == '__main__':
     # 時間取得herokuなど協定世界時(UTC)の環境で日本時間に合わせる場合はこっち
     # TODAY = (datetime.datetime.now() + datetime.timedelta(hours = 9)).strftime('%Y%m%d')
     
+    # HTMLSessionのインスタンス作成
+    session = HTMLSession()
+
     # 実装確認用に中央開催日の日付を代入
     TODAY = '20220123'
     
