@@ -33,14 +33,15 @@ def main():
     rec_flag = pd.DataFrame(index = race_id, 
                             columns = ['10', '9', '8', '7', '6', '5', '4',
                                        '3', '2', '1', 'confirm', 'schedule_time'])
+    # 0埋め
     rec_flag.fillna(0, inplace = True)
 
+    # 全レース記録終了までループ
     while True:
         rec_flag = target_check(rec_flag)
 
-        # 開催終了チェック
-        if not 0 in rec_flag and not 1 in rec_flag:
-            print('本日のレースは終了しました')
+        # 終了チェック
+        if not 0 in rec_flag:
             exit()
 
 def target_check(rec_flag):
@@ -57,36 +58,47 @@ def target_check(rec_flag):
         # NOW = datetime.datetime.now() + datetime.timedelta(hours = 9)
 
         target_clm = ''
+
+        # 今スクレイピングした予定時刻を設定
         race_time = datetime.datetime.strptime(TODAY + time_schedule[idx], '%Y%m%d%H:%M')
+        
+        # 前ループでスクレイピングした予定時刻を設定
         before_schedule_time = datetime.datetime.strptime(TODAY + rec_flag['schedule_time'][idx], '%Y%m%d%H:%M')
+        
+        # レースまでの秒数(レース予定時刻 - 現在の時刻)を設定
         remaining_time = (race_time - NOW).seconds
-        # timedeltaにminutesはない？
+
+        # 前回スクレイピングからの予定時刻のズレを設定
         diff_time = (race_time - before_schedule_time).minutes
         
+        # 記録フラグの一番左の0のカラムを設定
         for clm in rec_flag:
             if rec_flag[clm][idx] == 0:
                 target_clm = clm
                 break
-                
+        
+        # 最終オッズのみ未記録の場合
         if target_clm == 'confirm':
+            # レース時間5分後に最終オッズを記録
             if remaining_time <= -300:
                 rec_flag[clm][idx], success_flag = get_odds()
-                # TODO CSV書き込み、レコード削除
+                
+                # 書き込み、レコード削除
+
         else:
-            if target_clm != 'comfirm':
-                if diff_time < -60:
-                    # TODO レース時間が前倒しになった場合(ない？)
-                    pass
-                elif diff_time > 60:
-                    # TODO レース時間が後ろ倒しになった場合
-                    pass
+            if diff_time < -60:
+                # TODO レース時間が前倒しになった場合(ない？)
+                pass
+            elif diff_time > 60:
+                # TODO レース時間が後ろ倒しになった場合
+                pass
                 
             if (int(clm) - 1) * 60 < remaining_time <= int(clm) * 60:
                 # TODO オッズ取得
                 rec_flag[clm][idx], success_flag = get_odds(rec_flag, idx)
                 pass
         
-        # 記録したらレース予定時刻を更新
+        # レース予定時刻を更新
         if success_flag:
             rec_flag['schedule_time'][idx] = NOW.strftime('%H:%M')
         
@@ -97,11 +109,11 @@ def get_odds(rec_flag, race_id):
     r = session.get(URL)
     r.html.render()
 
-    tansyo = pd.read_html(r.html.html)[0].iloc[:, [1, 5]]
-    fukusyo = pd.read_html(r.html.html)[1]['オッズ'].str.split(' - ', expand = True)
+    win = pd.read_html(r.html.html)[0].iloc[:, [1, 5]]
+    place = pd.read_html(r.html.html)[1]['オッズ'].str.split(' - ', expand = True)
 
-    odds = pd.concat([tansyo, fukusyo], axis = 1)
-    odds.rename(columns={'オッズ': '単勝', 0: '複勝下限', 1: '複勝上限'}, inplace=True)
+    odds = pd.concat([win, place], axis = 1)
+    odds.rename(columns={'オッズ': '単勝', 0: '複勝下限', 1: '複勝上限'}, inplace = True)
     print(odds)
     # return rec_flag, True
 
@@ -120,6 +132,14 @@ def get_race_time():
     return race_time
 
 if __name__ == '__main__':
+    df_record = pd.DataFrame(columns = ['race_id', 'horse_num', '10win', '10place_min', '10place_max', 
+                                        '09win', '09place_min', '09place_max', '08win', '08place_min', '08place_max', 
+                                        '07win', '07place_min', '07place_max', '06win', '06place_min', '06place_max',
+                                        '05win', '05place_min', '05place_max', '03win', '03place_min', '03place_max',
+                                        '02win', '02place_min', '02place_max', '01win', '01place_min', '01place_max', 
+                                        'confirm_win', 'confirm_place_min', 'confirm_place_max',
+                                        ])
+
     session = HTMLSession()
     get_odds(0, '202205010201')
 
