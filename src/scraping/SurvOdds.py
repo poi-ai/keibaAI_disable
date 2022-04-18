@@ -19,7 +19,7 @@ def main():
         print('本日は中央開催はありません')
         exit()
     
-    # レースURLからIDのみ抽出
+    # レースURLからレースIDを抽出
     for link in links:
         a_url = link.get('href')
         # 出走前のレースは「shutuba.html」、
@@ -45,10 +45,19 @@ def main():
             exit()
 
 def target_check(rec_flag):
+    '''取得対象レースのチェックを行う
+
+    Args:
+        rec_flag(list):稼働日のレースのオッズ記録フラグを持つリスト
+
+    Returns:
+        rec_flag(list):処理後のオッズ記録フラグのリスト
+        
+    '''
     # レース時刻取得
     time_schedule = get_race_time()
 
-    # レース記録フラグを探索
+    # 各レースごとのレース記録フラグをチェック
     for idx in rec_flag.index:
 
         # 現在時刻取得(JST環境)
@@ -57,6 +66,7 @@ def target_check(rec_flag):
         # 現在時刻取得(UTC環境)
         # NOW = datetime.datetime.now() + datetime.timedelta(hours = 9)
 
+        # 記録対象の時間(カラム名)を格納
         target_clm = ''
 
         # 今スクレイピングした予定時刻を設定
@@ -84,7 +94,6 @@ def target_check(rec_flag):
                 rec_flag[clm][idx], success_flag = get_odds()
                 
                 # 書き込み、レコード削除
-
         else:
             if diff_time < -60:
                 # TODO レース時間が前倒しになった場合(ない？)
@@ -105,33 +114,59 @@ def target_check(rec_flag):
     return rec_flag
 
 def get_odds(rec_flag, race_id):
+    '''レースのオッズ取得を行う
+
+    Args:
+        rec_flag(list):稼働日のレースのオッズ記録フラグを持つリスト
+        TODO
+
+    Returns:
+        TODO
+        
+    '''
+    # レースIDからURLを指定しHTML情報の取得
     URL = 'https://race.netkeiba.com/odds/index.html?type=b1&race_id=' + race_id + '&rf=shutuba_submenu'
     r = session.get(URL)
     r.html.render()
 
+    # 単勝TBLから馬番と単勝オッズの切り出し
     win = pd.read_html(r.html.html)[0].iloc[:, [1, 5]]
+
+    # 複勝TBLから複勝オッズの切り出し
     place = pd.read_html(r.html.html)[1]['オッズ'].str.split(' - ', expand = True)
 
+    # 切り出した単複情報を結合
     odds = pd.concat([win, place], axis = 1)
     odds.rename(columns={'オッズ': '単勝', 0: '複勝下限', 1: '複勝上限'}, inplace = True)
     print(odds)
     # return rec_flag, True
 
 def get_race_time():
+    '''レース時刻の取得を行う
+
+    Returns:
+        race_time(list):レース時刻を持つリスト
+        
+    '''
+    # 稼働日の開催情報サイトのHTMLを取得
     soup = Soup.get_soup('https://race.netkeiba.com/top/race_list_sub.html?kaisai_date=' + TODAY)
 
+    # レース時刻を格納するリスト
     race_time = []
 
-    # レース時間用のクラス名を抽出
+    # HTMLからレース時間記録用のクラス名を抽出
     times = soup.find_all('span', class_='RaceList_Itemtime')
     
-    # タグと空白を削除
+    # タグと空白を削除しリストに追加
     for time in times:
         race_time.append(time.get_text(strip = False)[:5])
 
+    # レース時間を記録したリストを返す
     return race_time
 
 if __name__ == '__main__':
+
+    # オッズ取得のデータ型の定義
     df_record = pd.DataFrame(columns = ['race_id', 'horse_num', '10win', '10place_min', '10place_max', 
                                         '09win', '09place_min', '09place_max', '08win', '08place_min', '08place_max', 
                                         '07win', '07place_min', '07place_max', '06win', '06place_min', '06place_max',
@@ -140,7 +175,10 @@ if __name__ == '__main__':
                                         'confirm_win', 'confirm_place_min', 'confirm_place_max',
                                         ])
 
+    # インスタンス作成
     session = HTMLSession()
+
+    # テスト用の値
     get_odds(0, '202205010201')
 
     exit()
