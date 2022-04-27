@@ -28,7 +28,7 @@ def netkeiba(str):
     if str in COURSE.values():
         return [i for i, v in COURSE.items() if v == str][0]
 
-    raise ValueError("競馬場コード変換で例外が発生しました")
+    raise ValueError("netkeibaの競馬場コード変換に失敗しました")
 
 def rakuten(str):
     '''楽天競馬のDBで使用されている競馬場コードを変換するメソッド
@@ -58,4 +58,4 @@ def rakuten(str):
     if str in COURSE.values():
         return [i for i, v in COURSE.items() if v == str][0]
     
-    raise ValueError("競馬場コード変換で例外が発生しました")
+    raise ValueError("楽天競馬の競馬場コード変換に失敗しました")
