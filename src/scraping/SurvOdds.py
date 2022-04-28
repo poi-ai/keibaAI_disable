@@ -2,7 +2,7 @@ import datetime
 import time
 import pandas as pd
 import WriteSheet as WS
-from common import Soup
+from common import Logger, Soup
 from requests_html import HTMLSession
 
 def main():
@@ -23,7 +23,7 @@ def main():
 
         # 全レース記録済みならば処理終了
         if not 0 in record_flg:
-            print('本日のオッズ記録は終了しました')
+            logger.info('本日のオッズ記録は終了しました')
             exit()
 
 def get_race_id():
@@ -191,11 +191,15 @@ def get_recent_time(NOW):
         return recent_time
 
 if __name__ == '__main__':
+
     # 時間取得。日本時間(JST)の実行環境で実行する場合はこっち
     TODAY = datetime.datetime.now().strftime('%Y%m%d')
 
     # 時間取得。herokuなど協定世界時(UTC)の実行環境で日本時間に合わせる場合はこっち
     # TODAY = (datetime.datetime.now() + datetime.timedelta(hours = 9)).strftime('%Y%m%d')
+
+    # ロギングの設定
+    logger = Logger.Logger()
     
     # HTMLSessionのインスタンス作成
     session = HTMLSession()
@@ -208,7 +212,7 @@ if __name__ == '__main__':
 
     # 稼働日にレースがない場合
     if race_id_list == []:
-        print('本日の中央開催はありません')
+        logger.info('本日の中央開催はありません')
         exit()
 
     # 記録済みフラグを設定

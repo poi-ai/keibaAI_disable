@@ -1,4 +1,5 @@
 *.csv
 *.json
 *.pyc
+*.log
 line_token.txt
