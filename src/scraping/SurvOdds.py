@@ -10,7 +10,11 @@ def main():
 
     # 全レース記録終了までループ
     while True:
+        # 記録開始前の時刻を取得(JST環境)
         NOW = datetime.datetime.now()
+
+        # 記録開始前の時刻を取得(UTC環境)
+        #NOW = datetime.datetime.now() + datetime.timedelta(hours = 9)
 
         # オッズの記録処理
         time_check()
@@ -18,8 +22,11 @@ def main():
         #次の記録時間
         sleep_time = get_recent_time(NOW) - 3
         
-        # 直近のレース時刻まで処理停止
+        # 直近のレース時刻まで処理停止(JST)
         time.sleep(sleep_time)
+
+        # 直近のレース時刻まで処理停止(UTC)
+        #time.sleep(sleep_time)
 
         # 全レース記録済みならば処理終了
         if not 0 in record_flg:
@@ -78,7 +85,7 @@ def time_check():
         race_time = datetime.datetime.strptime(TODAY + time_schedule[idx], '%Y%m%d%H:%M')
 
         # レースまでの秒数(レース予定時刻 - 現在の時刻)を設定
-        diff_time = (race_time - NOW).seconds
+        diff_time = int((race_time - NOW).total_seconds())
 
         # レースまでの残り時間によって記録を行う
         if 50 <= diff_time <= 790:
@@ -185,9 +192,6 @@ def get_recent_time(NOW):
             elif 790 <= diff_time - 60:
                 recent_time = min(recent_time, diff_time - 60 - 790)
 
-        print(diff_time)
-        print(recent_time)
-
         return recent_time
 
 if __name__ == '__main__':
@@ -214,6 +218,8 @@ if __name__ == '__main__':
     if race_id_list == []:
         logger.info('本日の中央開催はありません')
         exit()
+    else:
+        logger.info('記録対象レース数：{0}'.format(len(race_id_list)))
 
     # 記録済みフラグを設定
     record_flg = [0 for _ in range(len(race_id_list))]

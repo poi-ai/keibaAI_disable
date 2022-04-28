@@ -20,8 +20,8 @@ class Logger():
         # フォーマットの設定
         formatter = logging.Formatter('%(asctime)s - [%(levelname)s] %(message)s')
         
-        # 出力レベルの設定、全部出るように
-        self.logger.setLevel(logging.DEBUG)
+        # 出力レベルの設定
+        self.logger.setLevel(logging.INFO)
 
         if self.output != 0:
             # ログフォルダチェック。無ければ作成
@@ -30,7 +30,7 @@ class Logger():
             # 出力先を設定
             handler = logging.FileHandler('log/' + Path(inspect.stack()[1].filename).stem +'.log')
             # 出力レベルを設定
-            handler.setLevel(logging.DEBUG)
+            handler.setLevel(logging.INFO)
             # フォーマットの設定
             handler.setFormatter(formatter)
             # ハンドラの適用
@@ -40,7 +40,7 @@ class Logger():
             # ハンドラの設定
             handler = logging.StreamHandler(sys.stdout)
             # 出力レベルを設定
-            handler.setLevel(logging.DEBUG)
+            handler.setLevel(logging.INFO)
             # フォーマットの設定
             handler.setFormatter(formatter)     
             # ハンドラの適用
