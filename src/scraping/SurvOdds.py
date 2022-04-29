@@ -81,21 +81,21 @@ def time_check():
         # レースまでの残り時間によって記録を行う
         if 50 <= diff_time <= 790:
             # レース13分10秒前から50秒前まで暫定オッズを取得
-            get_odds(race_id_list[idx])
+            get_odds(race_id_list[idx], race_time, 1)
         elif diff_time <= -1200:
             # レース20分後に最終オッズを取得
-            get_odds(race_id_list[idx])
+            get_odds(race_id_list[idx], race_time, 0)
 
             # 最終オッズまで記録したレースは記録済みにする
             record_flg[idx] = 1
 
-    return record_flg
-
-def get_odds(race_id):
+def get_odds(race_id, complete_flg):
     '''レースのオッズ取得を行う
 
     Args:
         race_id(str):取得対象のレースID
+        race_time(str,YYYYmmddHHMMSS):取得対象レースの出走(予定)時刻
+        complete_flg(int):取得対象が最終オッズか 1:最終 0:それ以外
 
     '''
     # レースIDからURLを指定しHTML情報の取得
@@ -109,18 +109,25 @@ def get_odds(race_id):
     # 複勝TBLから複勝オッズの切り出し
     place_odds = pd.read_html(r.html.html)[1]['オッズ'].str.split(' - ', expand = True)
 
+    # TODO あとでまとめる
     # 記録時刻を頭数分用意
-    time_copy = [jst.time() for _ in range(len(win_odds))]
+    time = [jst.time() for _ in range(len(win_odds))]
     
-    # レースIDを頭数分用意
-    race_id_copy = [race_id for _ in range(len(win_odds))]
+    # レースIDを頭数分用意 T
+    race_id = [race_id for _ in range(len(win_odds))]
+
+    # 発走(予定)時刻を取得
+    race_time = [race_time for _ in range(len(win_odds))]
+
+    # 最終オッズフラグを用意
+    complete_flg = [complete_flg for _ in range(len(win_odds))]
 
     # 切り出したデータを結合
-    odds = pd.concat([pd.DataFrame(race_id_copy), pd.DataFrame(time_copy), win_odds, place_odds], axis = 1)
+    odds = pd.concat([pd.DataFrame(race_id), pd.DataFrame(time), win_odds, place_odds], axis = 1)
     #odds.rename(columns={'オッズ': '単勝', 0: '複勝下限', 1: '複勝上限'}, inplace = True)
 
     # Googleスプレッドシートに記載を行う
-    WS.write_spread_sheet(odds, int(time_copy[0][:6]))
+    WS.write_spread_sheet(odds, int(time[0][:6]))
 
 def get_race_time():
     '''レース時刻の取得を行う
@@ -183,7 +190,7 @@ def get_recent_time(NOW):
             elif 790 <= diff_time - 60:
                 recent_time = min(recent_time, diff_time - 60 - 790)
 
-        return recent_time
+    return recent_time
 
 if __name__ == '__main__':
     # 日本時間取得クラスのインスタンス作成
@@ -197,9 +204,6 @@ if __name__ == '__main__':
 
     # 稼働日の日付を取得
     TODAY = jst.date()
-
-    # 動作確認用に中央開催日の日付を設定
-    TODAY = '20220424'
     
     # 稼働日のレースIDを取得
     race_id_list = get_race_id()

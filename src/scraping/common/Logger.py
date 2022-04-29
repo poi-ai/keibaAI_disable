@@ -5,10 +5,13 @@ import sys
 from pathlib import Path
 
 class Logger():
-    '''loggerの設定を簡略化したクラス
-       Logger():ログと標準出力両方
-       Logger(1):ログのみ
-       Logger(0):標準出力のみ
+    '''loggerの設定を簡略化
+        ログファイル名は呼び出し元のファイル名
+        出力はINFO以上のメッセージのみ
+    
+    Args:
+        output(int):出力タイプを指定
+                    0:ログ出力、1:標準出力、空:両方出力
     
     '''
     def __init__(self, output=None):
@@ -23,6 +26,7 @@ class Logger():
         # 出力レベルの設定
         self.logger.setLevel(logging.INFO)
 
+        # ログ出力設定
         if self.output != 0:
             # ログフォルダチェック。無ければ作成
             if not os.path.exists('log'):
@@ -36,6 +40,7 @@ class Logger():
             # ハンドラの適用
             self.logger.addHandler(handler)
 
+        # コンソール出力設定
         if self.output != 1:
             # ハンドラの設定
             handler = logging.StreamHandler(sys.stdout)
