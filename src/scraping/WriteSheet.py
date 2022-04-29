@@ -17,8 +17,9 @@ def write_spread_sheet(df, month):
     # スプレッドシートID保管CSVの取得 
     df_id = pd.read_csv('SheetID.csv')
 
-    # スプレッドシートIDの設定。
-    SPREADSHEET_KEY = df_id[df_id['month'] == month]['id'][0]
+    # スプレッドシートIDの設定
+    target_sheet = df_id[df_id['month'] == month].reset_index()
+    SPREADSHEET_KEY = target_sheet['id'][0]
 
     # スコープの設定
     SCOPE = ['https://www.googleapis.com/auth/spreadsheets','https://www.googleapis.com/auth/drive']
