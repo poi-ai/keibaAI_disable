@@ -2,7 +2,7 @@ import datetime
 import time
 import pandas as pd
 import WriteSheet as WS
-from common import Logger, Soup
+from common import Logger, Soup, Jst
 from requests_html import HTMLSession
 
 def main():
@@ -129,7 +129,7 @@ def get_odds(race_id):
     #odds.rename(columns={'オッズ': '単勝', 0: '複勝下限', 1: '複勝上限'}, inplace = True)
 
     # Googleスプレッドシートに記載を行う
-    WS.write_spread_sheet(odds, time_copy[0][:6])
+    WS.write_spread_sheet(odds, int(time_copy[0][:6]))
 
 def get_race_time():
     '''レース時刻の取得を行う
