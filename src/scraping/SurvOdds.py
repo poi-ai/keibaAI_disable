@@ -10,11 +10,8 @@ def main():
 
     # 全レース記録終了までループ
     while True:
-        # 記録開始前の時刻を取得(JST環境)
-        NOW = datetime.datetime.now()
-
-        # 記録開始前の時刻を取得(UTC環境)
-        #NOW = datetime.datetime.now() + datetime.timedelta(hours = 9)
+        # 記録開始前の時刻を取得
+        NOW = jst.now()
 
         # オッズの記録処理
         time_check()
@@ -22,11 +19,8 @@ def main():
         #次の記録時間
         sleep_time = get_recent_time(NOW) - 3
         
-        # 直近のレース時刻まで処理停止(JST)
+        # 直近のレース時刻まで処理停止
         time.sleep(sleep_time)
-
-        # 直近のレース時刻まで処理停止(UTC)
-        #time.sleep(sleep_time)
 
         # 全レース記録済みならば処理終了
         if not 0 in record_flg:
@@ -75,11 +69,8 @@ def time_check():
     # 現在時刻とレース時刻を比較
     for idx in range(len(time_schedule)):
 
-        # 現在時刻取得(JST環境)
-        NOW = datetime.datetime.now()
-
-        # 現在時刻取得(UTC環境)
-        # NOW = datetime.datetime.now() + datetime.timedelta(hours = 9)
+        # 現在時刻取得
+        NOW = jst.now()
 
         # 取得したレース予定時刻をdatetime型に変換
         race_time = datetime.datetime.strptime(TODAY + time_schedule[idx], '%Y%m%d%H:%M')
@@ -119,7 +110,7 @@ def get_odds(race_id):
     place_odds = pd.read_html(r.html.html)[1]['オッズ'].str.split(' - ', expand = True)
 
     # 記録時刻を頭数分用意
-    time_copy = [datetime.datetime.now().strftime('%Y%m%d%H%M%S') for _ in range(len(win_odds))]
+    time_copy = [jst.time() for _ in range(len(win_odds))]
     
     # レースIDを頭数分用意
     race_id_copy = [race_id for _ in range(len(win_odds))]
@@ -195,18 +186,17 @@ def get_recent_time(NOW):
         return recent_time
 
 if __name__ == '__main__':
+    # 日本時間取得クラスのインスタンス作成
+    jst = Jst.Jst()
 
-    # 時間取得。日本時間(JST)の実行環境で実行する場合はこっち
-    TODAY = datetime.datetime.now().strftime('%Y%m%d')
-
-    # 時間取得。herokuなど協定世界時(UTC)の実行環境で日本時間に合わせる場合はこっち
-    # TODAY = (datetime.datetime.now() + datetime.timedelta(hours = 9)).strftime('%Y%m%d')
-
-    # ロギングの設定
+    # 簡易型ロギングクラスのインスタンス作成
     logger = Logger.Logger()
     
     # HTMLSessionのインスタンス作成
     session = HTMLSession()
+
+    # 稼働日の日付を取得
+    TODAY = jst.date()
 
     # 動作確認用に中央開催日の日付を設定
     TODAY = '20220424'

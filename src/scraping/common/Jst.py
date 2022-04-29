@@ -1,24 +1,29 @@
 import datetime
 
-class JST():
-    def jst(self):
+class Jst():
+    def now(self):
+        '''
+        Returns:
+            JST(datetime)
+
+        '''
         return datetime.datetime.utcnow() + datetime.timedelta(hours=9)
 
     def date(self):
         '''
         Returns:
-            JST(datetime)[YYYYmmdd]
+            JST(str)[YYYYmmdd]
 
         '''
-        return self.jst().strftime("%Y%m%d")
+        return self.now().strftime("%Y%m%d")
 
     def time(self):
         '''
         Returns:
-            JST(datetime)[YYYYmmddHHMMSS]
+            JST(str)[YYYYmmddHHMMSS]
 
         '''
-        return self.jst().strftime("%Y%m%d%H%M%S")
+        return self.now().strftime("%Y%m%d%H%M%S")
 
     def year(self):
         '''
@@ -26,7 +31,7 @@ class JST():
             JSTの年(int)
 
         '''
-        return self.jst().year
+        return self.now().year
 
     def month(self):
         '''
@@ -34,7 +39,7 @@ class JST():
             JSTの月(int)
 
         '''
-        return self.jst().month
+        return self.now().month
 
     def day(self):
         '''
@@ -42,7 +47,7 @@ class JST():
             JSTの日(int)
 
         '''
-        return self.jst().day
+        return self.now().day
 
     def hour(self):
         '''
@@ -50,7 +55,7 @@ class JST():
             JSTの時間(int)
 
         '''
-        return self.jst().hour
+        return self.now().hour
 
     def minute(self):
         '''
@@ -58,7 +63,7 @@ class JST():
             JSTの分(int)
 
         '''
-        return self.jst().minute
+        return self.now().minute
 
     def second(self):
         '''
@@ -66,4 +71,4 @@ class JST():
             JSTの秒(int)
 
         '''
-        return self.jst().second
+        return self.now().second
