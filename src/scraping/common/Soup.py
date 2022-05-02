@@ -4,8 +4,8 @@ from bs4 import BeautifulSoup
 
 def get_soup(URL):
     '''指定したURLからHTMLタグをスクレイピングするメソッド。
-       GETの際にsleepを忘れると大変なことになるので、
-       必ずこのメソッドを呼び出す形でGETを行う。
+       間隔をあけずに高頻度でアクセスしてしまうのを防ぐために
+       必ずこのメソッドを経由してアクセスを行う
 
     Args:
         URL(str):抽出対象のURL
