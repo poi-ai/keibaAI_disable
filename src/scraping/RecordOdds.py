@@ -1,8 +1,7 @@
 import datetime
 import time
 import pandas as pd
-import WriteSheet as WS
-from common import Logger, Soup, Jst
+from common import Logger, Soup, Jst, WriteSheet as WS
 from requests_html import HTMLSession
 
 def main():
@@ -18,14 +17,17 @@ def main():
 
         #次の記録時間
         sleep_time = get_recent_time(NOW) - 3
-        
-        # 直近のレース時刻まで処理停止
-        time.sleep(sleep_time)
+
+        # debug
+        logger.info(str(sleep_time))
 
         # 全レース記録済みならば処理終了
         if not 0 in record_flg:
             logger.info('本日のオッズ記録は終了しました')
             exit()
+        
+        # 直近のレース時刻まで処理停止
+        time.sleep(sleep_time)
 
 def get_race_id():
     '''稼働日のレースIDを取得
@@ -61,13 +63,17 @@ def get_race_id():
     return race_id_list
 
 def time_check():
-    '''取得対象レースの時刻チェックを行う'''
+    '''レースの時刻チェックを行い記録対象かの判断を行う'''
     
     # 各レース時刻の取得
     time_schedule = get_race_time()
 
     # 現在時刻とレース時刻を比較
     for idx in range(len(time_schedule)):
+
+        # 既に記録が終了しているレースはチェックを行わない
+        if record_flg[idx] == 1:
+            continue
 
         # 現在時刻取得
         NOW = jst.now()
@@ -81,27 +87,40 @@ def time_check():
         # レースまでの残り時間によって記録を行う
         if 50 <= diff_time <= 790:
             # レース13分10秒前から50秒前まで暫定オッズを取得
-            get_odds(race_id_list[idx], race_time, 1)
+            get_odds(race_id_list[idx], race_time.strftime('%H%M'), 0)
         elif diff_time <= -1200:
             # レース20分後に最終オッズを取得
-            get_odds(race_id_list[idx], race_time, 0)
+            get_odds(race_id_list[idx], race_time.strftime('%H%M'), 1)
 
             # 最終オッズまで記録したレースは記録済みにする
             record_flg[idx] = 1
 
-def get_odds(race_id, complete_flg):
+def get_odds(race_id, race_time, complete_flg):
     '''レースのオッズ取得を行う
 
     Args:
         race_id(str):取得対象のレースID
-        race_time(str,YYYYmmddHHMMSS):取得対象レースの出走(予定)時刻
+        race_time(str,HHMM):取得対象レースの出走(予定)時刻
         complete_flg(int):取得対象が最終オッズか 1:最終 0:それ以外
 
     '''
     # レースIDからURLを指定しHTML情報の取得
     URL = 'https://race.netkeiba.com/odds/index.html?type=b1&race_id=' + race_id + '&rf=shutuba_submenu'
-    r = session.get(URL)
-    r.html.render()
+    
+    # レンダリング、失敗したら10回までやり直し
+    retry = 0
+    while True:
+        try:
+            r = session.get(URL)
+            r.html.render()
+            break
+        except:
+            time.sleep(1)
+            logger.error('レンダリングに失敗:' + race_id)
+            retry += 1
+            if retry >= 10:
+                logger.error('レンダリングに10回失敗したため処理を終了します')
+                exit()
 
     # 単勝TBLから馬番と単勝オッズの切り出し
     win_odds = pd.read_html(r.html.html)[0].iloc[:, [1, 5]]
@@ -111,9 +130,9 @@ def get_odds(race_id, complete_flg):
 
     # TODO あとでまとめる
     # 記録時刻を頭数分用意
-    time = [jst.time() for _ in range(len(win_odds))]
+    time_stump = [jst.time() for _ in range(len(win_odds))]
     
-    # レースIDを頭数分用意 T
+    # レースIDを頭数分用意
     race_id = [race_id for _ in range(len(win_odds))]
 
     # 発走(予定)時刻を取得
@@ -123,7 +142,7 @@ def get_odds(race_id, complete_flg):
     complete_flg = [complete_flg for _ in range(len(win_odds))]
 
     # 切り出したデータを結合
-    odds = pd.concat([pd.DataFrame(race_id), pd.DataFrame(time), win_odds, place_odds], axis = 1)
+    odds = pd.concat([pd.DataFrame(race_id), pd.DataFrame(time_stump),pd.DataFrame(race_time), pd.DataFrame(complete_flg),  win_odds, place_odds], axis = 1)
     #odds.rename(columns={'オッズ': '単勝', 0: '複勝下限', 1: '複勝上限'}, inplace = True)
 
     # Googleスプレッドシートに記載を行う
