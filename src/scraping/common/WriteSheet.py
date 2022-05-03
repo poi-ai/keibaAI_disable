@@ -4,7 +4,7 @@ import os
 import pandas as pd
 from google.oauth2.service_account import Credentials
 
-def write_spread_sheet(df, month):
+def write_spread_sheet(df, month, header=None):
     '''スプレッドシートにデータを書き込む。
        実行にはGoogle DriveとスプレッドシートのAPIを
        使用できる資格情報を書いたkeibaAI.jsonと、
@@ -13,9 +13,10 @@ def write_spread_sheet(df, month):
     Args:
         df(pandas.DataFrame):スプレッドシートに書き込むデータ
         month(int):レース年月をyyyymmのint型で書き込むシートを指定
+        header(list or pandas.DataFrame):スプレッドシートの1行目に書き込むヘッダ名を指定
         
     '''
-    # スプレッドシートID保管CSVの取得 
+    # スプレッドシートIDが記載されているCSVの取得 
     df_id = pd.read_csv(os.path.dirname(__file__) + '/SheetID.csv')
 
     # スプレッドシートIDの設定
@@ -34,6 +35,17 @@ def write_spread_sheet(df, month):
     
     # 最終行の取得
     last_index = len(worksheet.col_values(1))
+
+    # 新しいスプレッドシートに書き込む場合、先にヘッダー(カラム名)を書き込み
+    if last_index + 1 == 1:
+        if type(header) is list:
+            df_header = pd.DataFrame(columns=header)
+            gd.set_with_dataframe(worksheet, df_header, row = 1)
+            last_index += 1
+        elif type(header) is pd.DataFrame:
+            df_header = header[:0]
+            gd.set_with_dataframe(worksheet, df_header, row = 1)
+            last_index += 1
 
     # 最終行の次の行から書き込み
     gd.set_with_dataframe(worksheet, df, row = last_index + 1, include_column_header = False)
