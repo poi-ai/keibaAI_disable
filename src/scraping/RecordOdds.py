@@ -1,7 +1,7 @@
 import datetime
 import time
 import pandas as pd
-from common import Logger, Soup, Jst, WriteSheet as WS
+from common import Logger, Soup, Jst, WriteSheet, CourseCodeChange
 from requests_html import HTMLSession
 
 def main():
@@ -88,9 +88,11 @@ def time_check():
         if 50 <= diff_time <= 790:
             # レース13分10秒前から50秒前まで暫定オッズを取得
             get_odds(race_id_list[idx], race_time.strftime('%H%M'), 0)
+            logger.info('{}{}Rの{}分前オッズを記録しました'.format(CourseCodeChange.netkeiba(race_id_list[idx][4:6]), race_id_list[idx][10:], int(diff_time / 60)))
         elif diff_time <= -1200:
             # レース20分後に最終オッズを取得
             get_odds(race_id_list[idx], race_time.strftime('%H%M'), 1)
+            logger.info('{}{}Rの最終オッズを記録しました'.format(CourseCodeChange.netkeiba(race_id_list[idx][4:6]), race_id_list[idx][10:]))
 
             # 最終オッズまで記録したレースは記録済みにする
             record_flg[idx] = 1
@@ -128,25 +130,17 @@ def get_odds(race_id, race_time, complete_flg):
     # 複勝TBLから複勝オッズの切り出し
     place_odds = pd.read_html(r.html.html)[1]['オッズ'].str.split(' - ', expand = True)
 
-    # TODO あとでまとめる
-    # 記録時刻を頭数分用意
-    time_stump = [jst.time() for _ in range(len(win_odds))]
-    
-    # レースIDを頭数分用意
-    race_id = [race_id for _ in range(len(win_odds))]
-
-    # 発走(予定)時刻を取得
-    race_time = [race_time for _ in range(len(win_odds))]
-
-    # 最終オッズフラグを用意
-    complete_flg = [complete_flg for _ in range(len(win_odds))]
+    # レース情報(レースID, 記録時刻, 発走(予定)時刻, 最終オッズフラグ)を頭数分設定
+    race_info = [[race_id, jst.time(), race_time, complete_flg] for _ in range(len(win_odds))]
 
     # 切り出したデータを結合
-    odds = pd.concat([pd.DataFrame(race_id), pd.DataFrame(time_stump),pd.DataFrame(race_time), pd.DataFrame(complete_flg),  win_odds, place_odds], axis = 1)
-    #odds.rename(columns={'オッズ': '単勝', 0: '複勝下限', 1: '複勝上限'}, inplace = True)
+    odds = pd.concat([pd.DataFrame(race_info),  win_odds, place_odds], axis = 1)
+
+    # 各データのカラム名を設定
+    odds_header = ['レースID', '記録時刻', '発走時刻', '最終オッズフラグ', '馬番', '単勝オッズ', '複勝下限オッズ', '複勝上限オッズ']
 
     # Googleスプレッドシートに記載を行う
-    WS.write_spread_sheet(odds, int(time[0][:6]))
+    WriteSheet.write_spread_sheet(odds, int(jst.time()[:6]), odds_header)
 
 def get_race_time():
     '''レース時刻の取得を行う
