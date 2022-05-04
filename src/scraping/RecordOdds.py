@@ -25,7 +25,7 @@ def main():
         if not 0 in record_flg:
             logger.info('本日のオッズ記録は終了しました')
             exit()
-        
+
         # 直近のレース時刻まで処理停止
         time.sleep(sleep_time)
 
@@ -34,22 +34,22 @@ def get_race_id():
 
     Returns:
         race_id_list(list):稼働日のレースID
-    
+
     '''
 
     # 稼働日のレースIDを格納
     race_id_list = []
-       
+
     # HTML取得
     soup = Soup.get_soup('https://race.netkeiba.com/top/race_list_sub.html?kaisai_date=' + TODAY)
-    
+
     # リンクのついているaタグの取得
     links = soup.find_all('a')
 
-    # aタグがない(= 開催なし)の場合 
+    # aタグがない(= 開催なし)の場合
     if links == []:
         return []
-    
+
     # レースURLからレースIDを抽出
     for link in links:
         a_url = link.get('href')
@@ -59,12 +59,12 @@ def get_race_id():
             race_id_list.append(a_url[29:41])
         elif 'result.html' in a_url:
             race_id_list.append(a_url[28:40])
-    
+
     return race_id_list
 
 def time_check():
     '''レースの時刻チェックを行い記録対象かの判断を行う'''
-    
+
     # 各レース時刻の取得
     time_schedule = get_race_time()
 
@@ -108,7 +108,7 @@ def get_odds(race_id, race_time, complete_flg):
     '''
     # レースIDからURLを指定しHTML情報の取得
     URL = 'https://race.netkeiba.com/odds/index.html?type=b1&race_id=' + race_id + '&rf=shutuba_submenu'
-    
+
     # レンダリング、失敗したら10回までやり直し
     retry = 0
     while True:
@@ -147,7 +147,7 @@ def get_race_time():
 
     Returns:
         race_time(list):稼働日のレース発走時刻を持つリスト
-        
+
     '''
     # 稼働日の開催情報サイトのHTMLを取得
     soup = Soup.get_soup('https://race.netkeiba.com/top/race_list_sub.html?kaisai_date=' + TODAY)
@@ -157,7 +157,7 @@ def get_race_time():
 
     # HTMLからレース時間記録用のクラス名を抽出
     times = soup.find_all('span', class_='RaceList_Itemtime')
-    
+
     # タグと空白を削除しリストに追加
     for time in times:
         race_time.append(time.get_text(strip = False)[:5])
@@ -173,7 +173,7 @@ def get_recent_time(NOW):
 
     Returns:
         recent_time(int):前ループから60秒後以降で直近の記録までの時間
-    
+
     '''
 
     # 次の取得までの最短時間
@@ -211,13 +211,13 @@ if __name__ == '__main__':
 
     # 簡易型ロギングクラスのインスタンス作成
     logger = Logger.Logger()
-    
+
     # HTMLSessionのインスタンス作成
     session = HTMLSession()
 
     # 稼働日の日付を取得
     TODAY = jst.date()
-    
+
     # 稼働日のレースIDを取得
     race_id_list = get_race_id()
 
