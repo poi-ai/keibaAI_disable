@@ -14,9 +14,9 @@ def write_spread_sheet(df, month, header=None):
         df(pandas.DataFrame):スプレッドシートに書き込むデータ
         month(int):レース年月をyyyymmのint型で書き込むシートを指定
         header(list or pandas.DataFrame):スプレッドシートの1行目に書き込むヘッダ名を指定
-        
+
     '''
-    # スプレッドシートIDが記載されているCSVの取得 
+    # スプレッドシートIDが記載されているCSVの取得
     df_id = pd.read_csv(os.path.dirname(__file__) + '/SheetID.csv')
 
     # スプレッドシートIDの設定
@@ -32,7 +32,7 @@ def write_spread_sheet(df, month, header=None):
 
     # スプレッドシート情報の取得
     worksheet = gc.open_by_key(SPREADSHEET_KEY).worksheet('シート1')
-    
+
     # 最終行の取得
     last_index = len(worksheet.col_values(1))
 

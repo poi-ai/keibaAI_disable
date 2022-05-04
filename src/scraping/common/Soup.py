@@ -9,10 +9,10 @@ def get_soup(URL):
 
     Args:
         URL(str):抽出対象のURL
-    
+
     Retuens:
         soup(bs4.BeautifulSoup):抽出したHTMLタグ
-    
+
     '''
     time.sleep(2)
     r = requests.get(URL)

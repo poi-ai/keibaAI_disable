@@ -9,7 +9,7 @@ def netkeiba(str):
     Returns:
         引数が競馬場名の場合は競馬場コード
         引数が競馬上コードの場合は競馬場名
-    
+
     '''
     COURSE = {'札幌': '01', '函館': '02', '福島': '03', '新潟': '04', '東京': '05',\
               '中山': '06', '中京': '07', '京都': '08', '阪神': '09', '小倉': '10','門別': '30',\
@@ -24,7 +24,7 @@ def netkeiba(str):
 
     if str in COURSE:
         return COURSE[str]
-    
+
     if str in COURSE.values():
         return [i for i, v in COURSE.items() if v == str][0]
 
@@ -34,14 +34,14 @@ def rakuten(str):
     '''楽天競馬のDBで使用されている競馬場コードを変換するメソッド
        ばんえい競馬は「競馬場名+ば」、中央と地方両方行われていた競馬場では、
        地方を「競馬場名+地」で表記
-       
+
     Args:
         str(str):競馬場名 あるいは 競馬場コード
 
     Returns:
         引数が競馬場名の場合は競馬場コード
         引数が競馬上コードの場合は競馬場名
-    
+
     '''
     COURSE = {'北見ば': '01', '岩見沢ば': '02', '帯広ば': '03', '旭川ば': '04', '岩見沢': '05',\
               '帯広': '06', '旭川': '07', '札幌地': '08', '函館地': '09', '盛岡': '10',\
@@ -54,8 +54,8 @@ def rakuten(str):
 
     if str in COURSE:
         return COURSE[str]
-    
+
     if str in COURSE.values():
         return [i for i, v in COURSE.items() if v == str][0]
-    
+
     raise ValueError("楽天競馬の競馬場コード変換に失敗しました")
