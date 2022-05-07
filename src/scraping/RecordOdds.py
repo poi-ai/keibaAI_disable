@@ -18,7 +18,7 @@ def main():
         #次の記録時間
         sleep_time = get_recent_time(NOW) - 3
 
-        # debug
+        # TODO debug
         logger.info(str(sleep_time))
 
         # 全レース記録済みならば処理終了
@@ -29,8 +29,11 @@ def main():
         # 直近のレース時刻まで処理停止
         time.sleep(sleep_time)
 
-def get_race_id():
+def get_race_id(jra_flg):
     '''稼働日のレースIDを取得
+
+    Args:
+        jra_flg(int):1[中央(JRA)],0[地方(NAR)]
 
     Returns:
         race_id_list(list):稼働日のレースID
@@ -40,25 +43,46 @@ def get_race_id():
     # 稼働日のレースIDを格納
     race_id_list = []
 
+    # 稼働日にレースが行われる競馬場のリストページを格納
+    soups = []
+
     # HTML取得
-    soup = Soup.get_soup('https://race.netkeiba.com/top/race_list_sub.html?kaisai_date=' + TODAY)
+    if jra_flg == 1:
+        # 中央の場合は1つのGETで全てのレースID(URL)を取得できる
+        soups.append(Soup.get_soup('https://race.netkeiba.com/top/race_list_sub.html?kaisai_date=' + TODAY))
+    elif jra_flg == 0:
+        # 地方の場合は各競馬場ごとにGETリクエストする必要がある
+        # 稼働日の開催情報の取得
+        course_soup = Soup.get_soup('https://nar.netkeiba.com/top/race_list_sub.html?kaisai_date=' + TODAY)
+        course_links = course_soup.find('ul', class_='RaceList_ProvinceSelect')
 
-    # リンクのついているaタグの取得
-    links = soup.find_all('a')
+        # 開催なしの場合
+        if course_links == []:
+            return []
 
-    # aタグがない(= 開催なし)の場合
-    if links == []:
-        return []
+        # 稼働日の各競馬場のレース一覧URLを取得
+        links = course_links.find_all('a')
+        for link in links:
+            soups.append(Soup.get_soup('https://nar.netkeiba.com/top/race_list_sub.html' + link.get('href') + '&kaisai_date=' + TODAY))
 
-    # レースURLからレースIDを抽出
-    for link in links:
-        a_url = link.get('href')
-        # 出走前のレースは「shutuba.html」、
-        # 出走後のレースは「result.html」がリンクされている
-        if 'shutuba.html' in a_url:
-            race_id_list.append(a_url[29:41])
-        elif 'result.html' in a_url:
-            race_id_list.append(a_url[28:40])
+    # レースIDを取得
+    for soup in soups:
+        # 各レースへのリンクを取得
+        links = soup.find_all('a')
+
+        # リンクがない(= 開催なし)の場合
+        if links == []:
+            return []
+
+        # レースURLからレースIDを抽出
+        for link in links:
+            a_url = link.get('href')
+            # 出走前のレースは「shutuba.html」
+            # 出走後のレースは「result.html」がリンクされている
+            if 'shutuba.html' in a_url:
+                race_id_list.append(a_url[29:41])
+            elif 'result.html' in a_url:
+                race_id_list.append(a_url[28:40])
 
     return race_id_list
 
@@ -87,12 +111,12 @@ def time_check():
         # レースまでの残り時間によって記録を行う
         if 50 <= diff_time <= 790:
             # レース13分10秒前から50秒前まで暫定オッズを取得
-            get_odds(race_id_list[idx], race_time.strftime('%H%M'), 0)
-            logger.info('{}{}Rの{}分前オッズを記録しました'.format(CourseCodeChange.netkeiba(race_id_list[idx][4:6]), race_id_list[idx][10:], int(diff_time / 60)))
+            get_odds(jra_race_id_list[idx], race_time.strftime('%H%M'), 0)
+            logger.info('{}{}Rの{}分前オッズを記録しました'.format(CourseCodeChange.netkeiba(jra_race_id_list[idx][4:6]), jra_race_id_list[idx][10:], int(diff_time / 60)))
         elif diff_time <= -1200:
             # レース20分後に最終オッズを取得
-            get_odds(race_id_list[idx], race_time.strftime('%H%M'), 1)
-            logger.info('{}{}Rの最終オッズを記録しました'.format(CourseCodeChange.netkeiba(race_id_list[idx][4:6]), race_id_list[idx][10:]))
+            get_odds(jra_race_id_list[idx], race_time.strftime('%H%M'), 1)
+            logger.info('{}{}Rの最終オッズを記録しました'.format(CourseCodeChange.netkeiba(jra_race_id_list[idx][4:6]), jra_race_id_list[idx][10:]))
 
             # 最終オッズまで記録したレースは記録済みにする
             record_flg[idx] = 1
@@ -109,7 +133,7 @@ def get_odds(race_id, race_time, complete_flg):
     # レースIDからURLを指定しHTML情報の取得
     URL = 'https://race.netkeiba.com/odds/index.html?type=b1&race_id=' + race_id + '&rf=shutuba_submenu'
 
-    # レンダリング、失敗したら10回までやり直し
+    # レンダリング,失敗したら10回までやり直し
     retry = 0
     while True:
         try:
@@ -219,17 +243,23 @@ if __name__ == '__main__':
     TODAY = jst.date()
 
     # 稼働日のレースIDを取得
-    race_id_list = get_race_id()
+    jra_race_id_list = get_race_id(1)
+    nar_race_id_list = get_race_id(0)
+
+    # TODO
+    print(jra_race_id_list)
+    print(nar_race_id_list)
+    
+    exit()
 
     # 稼働日にレースがない場合
-    if race_id_list == []:
+    if jra_race_id_list == []:
         logger.info('本日の中央開催はありません')
-        exit()
-    else:
-        logger.info('記録対象レース数：{0}'.format(len(race_id_list)))
+
+    logger.info('記録対象レース数：{0}'.format(len(jra_race_id_list)))
 
     # 記録済みフラグを設定
-    record_flg = [0 for _ in range(len(race_id_list))]
+    record_flg = [0 for _ in range(len(jra_race_id_list))]
 
     # メイン処理
     main()
