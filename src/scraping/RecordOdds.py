@@ -1,6 +1,8 @@
 import datetime
+import json
 import time
 import pandas as pd
+import requests
 from common import Logger, Soup, Jst, WriteSheet, CourseCodeChange
 from requests_html import HTMLSession
 
@@ -121,8 +123,36 @@ def time_check():
             # 最終オッズまで記録したレースは記録済みにする
             record_flg[idx] = 1
 
-def get_odds(race_id, race_time, complete_flg):
-    '''レースのオッズ取得を行う
+def get_odds_jra(race_id,  race_time, complete_flg):
+    '''中央競馬のレースのオッズ取得を行う
+
+    Args:
+        race_id(str):取得対象のレースID
+        race_time(str,HHMM):取得対象レースの出走(予定)時刻
+        complete_flg(int):取得対象が最終オッズか 1:最終 0:それ以外
+
+    '''
+    # レースIDからURLとパラメータを設定し、JSONを受け取る
+    r = requests.get('https://race.netkeiba.com/api/api_get_jra_odds.html?race_id=' + race_id + '&type=1&action=init&sort=odds&compress=0')
+    data = r.json()
+
+    # 受け取ったJSONをDataFrameに成形する
+    race_odds = pd.concat([pd.DataFrame.from_dict(data['data']['odds']['1']).T[0], pd.DataFrame.from_dict(data['data']['odds']['2']).T[[0, 1]]], axis = 1)
+
+    # レース情報(レースID, 記録時刻, 発走(予定)時刻, 最終オッズフラグ)を頭数分設定
+    race_info = [[race_id, jst.time(), race_time, complete_flg] for _ in range(len(race_odds))]
+
+    # 切り出したデータを結合
+    df = pd.concat([pd.DataFrame(race_info),  race_odds], axis = 1)
+
+    # 各データのカラム名を設定
+    df_header = ['レースID', '記録時刻', '発走時刻', '最終オッズフラグ', '馬番', '単勝オッズ', '複勝下限オッズ', '複勝上限オッズ']
+
+    # TODO
+
+
+def get_odds_nar(race_id, race_time, complete_flg):
+    '''地方競馬のレースのオッズ取得を行う
 
     Args:
         race_id(str):取得対象のレースID
@@ -131,40 +161,26 @@ def get_odds(race_id, race_time, complete_flg):
 
     '''
     # レースIDからURLを指定しHTML情報の取得
-    URL = 'https://race.netkeiba.com/odds/index.html?type=b1&race_id=' + race_id + '&rf=shutuba_submenu'
+    URL = 'https://nar.netkeiba.com/odds/odds_get_form.html?type=b1&race_id=' + race_id + '&rf=shutuba_submenu'
 
-    # レンダリング,失敗したら10回までやり直し
-    retry = 0
-    while True:
-        try:
-            r = session.get(URL)
-            r.html.render()
-            break
-        except:
-            time.sleep(1)
-            logger.error('レンダリングに失敗:' + race_id)
-            retry += 1
-            if retry >= 10:
-                logger.error('レンダリングに10回失敗したため処理を終了します')
-                exit()
+    # TBL情報の取得&エンコーディング
+    odds = pd.read_html(URL, encoding='utf-8')
 
-    # 単勝TBLから馬番と単勝オッズの切り出し
-    win_odds = pd.read_html(r.html.html)[0].iloc[:, [1, 5]]
-
-    # 複勝TBLから複勝オッズの切り出し
-    place_odds = pd.read_html(r.html.html)[1]['オッズ'].str.split(' - ', expand = True)
+    race_odds = pd.concat([odds[0][['馬番','オッズ']], odds[1]['オッズ'].str.split(' - ', expand = True)], axis = 1)
 
     # レース情報(レースID, 記録時刻, 発走(予定)時刻, 最終オッズフラグ)を頭数分設定
-    race_info = [[race_id, jst.time(), race_time, complete_flg] for _ in range(len(win_odds))]
+    race_info = [[race_id, jst.time(), race_time, complete_flg] for _ in range(len(race_odds))]
 
     # 切り出したデータを結合
-    odds = pd.concat([pd.DataFrame(race_info),  win_odds, place_odds], axis = 1)
+    df = pd.concat([pd.DataFrame(race_info), race_odds], axis = 1)
 
     # 各データのカラム名を設定
-    odds_header = ['レースID', '記録時刻', '発走時刻', '最終オッズフラグ', '馬番', '単勝オッズ', '複勝下限オッズ', '複勝上限オッズ']
+    df_header = ['レースID', '記録時刻', '発走時刻', '最終オッズフラグ', '馬番', '単勝オッズ', '複勝下限オッズ', '複勝上限オッズ']
 
+    # TODO 
+    
     # Googleスプレッドシートに記載を行う
-    WriteSheet.write_spread_sheet(odds, int(jst.time()[:6]), odds_header)
+    WriteSheet.write_spread_sheet(df, int(jst.time()[:6]), df_header)
 
 def get_race_time():
     '''レース時刻の取得を行う
