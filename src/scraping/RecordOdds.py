@@ -177,8 +177,8 @@ def get_odds_nar(race_id, race_time, complete_flg):
     # 各データのカラム名を設定
     df_header = ['レースID', '記録時刻', '発走時刻', '最終オッズフラグ', '馬番', '単勝オッズ', '複勝下限オッズ', '複勝上限オッズ']
 
-    # TODO 
-    
+    # TODO
+
     # Googleスプレッドシートに記載を行う
     WriteSheet.write_spread_sheet(df, int(jst.time()[:6]), df_header)
 
@@ -265,7 +265,7 @@ if __name__ == '__main__':
     # TODO
     print(jra_race_id_list)
     print(nar_race_id_list)
-    
+
     exit()
 
     # 稼働日にレースがない場合

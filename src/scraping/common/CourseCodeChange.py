@@ -28,7 +28,7 @@ def netkeiba(str):
     if str in COURSE.values():
         return [i for i, v in COURSE.items() if v == str][0]
 
-    raise ValueError("netkeibaの競馬場コード変換に失敗しました")
+    Logger.error("netkeibaの競馬場コード変換に失敗しました")
 
 def rakuten(str):
     '''楽天競馬のDBで使用されている競馬場コードを変換するメソッド
@@ -58,4 +58,29 @@ def rakuten(str):
     if str in COURSE.values():
         return [i for i, v in COURSE.items() if v == str][0]
 
-    raise ValueError("楽天競馬の競馬場コード変換に失敗しました")
+    Logger.error("楽天競馬の競馬場コード変換に失敗しました")
+
+def keibago(str):
+    '''keiba.go.jpで使用されている競馬場コードを変換するメソッド
+
+    Args:
+        str(str):競馬場名 あるいは 競馬場コード
+
+    Returns:
+        引数が競馬場名の場合は競馬場コード
+        引数が競馬上コードの場合は競馬場名
+
+    '''
+    # TODO 廃止となった競馬場も対応
+    COURSE = {'帯広ば': '3', '門別': '36', '札幌': '8', '盛岡': '10', '水沢': '11',\
+              '浦和': '18', '船橋': '19', '大井': '20', '川崎': '21', '金沢': '22',\
+              '笠松': '23', '名古屋': '24', '園田': '27', '姫路': '28',\
+              '高知': '31', '佐賀': '32'}
+
+    if str in COURSE:
+        return COURSE[str]
+
+    if str in COURSE.values():
+        return [i for i, v in COURSE.items() if v == str][0]
+
+    Logger.error("keiba.go.jpの競馬場コード変換に失敗しました")
