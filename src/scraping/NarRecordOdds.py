@@ -1,27 +1,46 @@
-from datetime import datetime
 import pandas as pd
+import Package
+import time
+from datetime import datetime
 from common import Jst, Soup, CourseCodeChange
 
-class Nar(Jst):
+class Nar():
     '''地方競馬オッズ取得クラス
 
-    Args:
-       baba_race_url(list<str>) : 各競馬場のレース情報が記載されたURL一覧
+    Class Parameter:
+       RACE_DATE(str):keiba.goのGETリクエストの日付パラメータ
+
+    Instance Parameter:
+       baba_url(list<str>) : 各競馬場のレース情報が記載されたURLのリスト
        race_info(list<RaceInfo>) : 各レース情報を持つリスト
-       next_time(int) : 次回オッズ取得までの秒数
+       next_get_time(datetime) : 次回オッズ取得時刻
        write_data(DataFrame) : 書き込み用データ
     '''
     # 日付のGETパラメータ
     RACE_DATE = f'{Jst.year()}%2f{Jst.month().zfill(2)}%2f{Jst.day().zfill(2)}'
 
     def __init__(self):
-        self.__baba_race_url = []
+        self.__baba_url = []
         self.__race_info = []
-        self.__next_time = -1
-        self.__write_data = pd.DataFrame(columns = ['馬番', '単勝オッズ', '複勝下限オッズ', '複勝上限オッズ'])
+        self.__next_get_time = 0
+        self.__write_data = pd.DataFrame(columns = ['馬番', '単勝オッズ', '複勝下限オッズ', '複勝上限オッズ', '記録時刻'])
+        self.get_url()
+        self.get_race_info()
 
-    def parameter_set(self):
-        '''稼働日のレース情報をセットする'''
+    @property
+    def next_get_time(self):
+        return self.__next_get_time
+
+    @property
+    def race_info(self):
+        return self.__race_info
+
+    @property
+    def baba_url(self):
+        return self.__baba_url
+
+    def get_url(self):
+        '''稼働日の各競馬場のレースリストURLを取得する'''
 
         # keiba.go.jpから稼働日に開催のある競馬場名を取得する
         baba_names = pd.read_html('https://www.keiba.go.jp/KeibaWeb/TodayRaceInfo/TopTodayRaceInfoMini')[0][0].values.tolist()
@@ -32,11 +51,11 @@ class Nar(Jst):
         # 各競馬場ごとにレース数と発走時刻を取得する
         for baba_code in baba_codes:
             # レースリスト一覧が載っているページのURLを保存
-            self.__baba_race_url.append(f'https://www.keiba.go.jp/KeibaWeb/TodayRaceInfo/RaceList?k_raceDate={Nar.RACE_DATE}&k_babaCode={baba_code}')
+            self.baba_url.append(f'https://www.keiba.go.jp/KeibaWeb/TodayRaceInfo/RaceList?k_raceDate={Nar.RACE_DATE}&k_babaCode={baba_code}')
 
     def get_race_info(self):
         '''レース情報を取得'''
-        for race_url in self.__baba_race_url:
+        for race_url in self.baba_url:
             # レース情報をDataFrame型で取得
             race_list = pd.read_html(race_url)[0]
 
@@ -54,27 +73,38 @@ class Nar(Jst):
         # 現在時刻取得
         NOW = Jst.now()
         # 秒数をリセット
-        self.__next_time == 9999999
+        self.__next_get_time == 9999999
 
         # 各レース毎に次のx分00秒が記録対象かチェック
         for race in self.__race_info:
             # 次のx分00秒からレース発走までの時間
             # TODO 発走時間過ぎの挙動を要チェック
-            time_left = race.race_time - NOW - int(Jst.second()) + 60
-            # レース1分前から12分以内なら記録
+            time_left = race.race_time - NOW - datetime.timedelta(seconds = (60 - int(Jst.second())))
+
+            # レース1分前から12分以内の場合
             if 60 <= time_left <= 720:
-                self.get_odds(race)
-            # レース20分以後かつ未記録フラグか立っているなら最終オッズを記録
-            if race.record_flg == '0' and time_left <= -1200:
-                self.get_odds(race)
                 race.record_flg = '1'
+                self.__next_get_time = NOW - datetime.timedelta(seconds = (60 -int(Jst.second())))
+            # レース20分以後かつ未記録フラグか立っている場合
+            elif race.record_flg == '0' and time_left <= -1200:
+                race.record_flg = '2'
+                self.__next_get_time = NOW - datetime.timedelta(seconds = (60 -int(Jst.second())))
+            elif:
+                # TODO 記録までの最短時間計算
+
+            # TODO 次の取得時間チェック
 
     def get_odds(self, race):
         '''(単勝・複勝)オッズの取得・記録を行う'''
         # オッズのテーブルを取得
         odds_table = pd.read_html(f'https://www.keiba.go.jp/KeibaWeb/TodayRaceInfo/OddsTanFuku?k_raceDate={Nar.RACE_DATE}&k_raceNo={race.race_no}&k_babaCode={race.baba_code}')[0]
         # 馬番・単勝オッズ・複勝オッズの列のみ抽出
-        odds_data = odds_table.loc[:, ['馬番', '単勝オッズ', odds_table.columns[4], odds_table.columns[5]]].rename(columns = self.write_data.columns)
+        odds_data = odds_table.loc[:, ['馬番', '単勝オッズ', odds_table.columns[4], odds_table.columns[5]]]
+        # 現在時刻(yyyyMMddHHMMSS)カラムの追加
+        odds_data['time'] = [Jst.time() for _ in range(len(odds_data))]
+        # 結合用にカラム名振り直し
+        odds_data = odds_data.rename(columns = self.write_data.columns)
+        # 一時保存用変数に格納
         self.__write_data = pd.Concat([odds_data, self.__write_data])
 
     def record_odds(self):
@@ -82,20 +112,29 @@ class Nar(Jst):
         # TODO WriteCsv.write_csv()
         # TODO WriteSheet.write_spread_sheet(Jst.month(), self.__write_data, odds_columns)
 
-        # 最終オッズ出力待ちのデータを記録済にする
+        # 出力待ちのフラグを変更する
         for race in self.get_race_info:
-            if race.record_flg == '1':
+            # 暫定オッズフラグの変更
+            if race.record_flg == '3':
+                race.record_flg = '0'
+            # 最終オッズフラグの変更
+            if race.record_flg == '4':
                 race.record_flg = '-1'
 
 class RaceInfo():
     '''各レースの情報を保持を行う
 
-    Args:
+    Instance Parameter:
        baba_code(str) : 競馬場コード
        race_no(str) : レース番号,xxRのxxの部分
        race_time(datetime) : 発走時刻
-       record_flg(str) : 0,未記録・記録中 1,最終オッズ出力待ち -1,記録済
-       TODO jra_flg(bool) : T,中央 F,地方
+       record_flg(str) : 0,記録時刻待ち
+                         1,暫定オッズ取得待ち
+                         2,最終オッズ取得待ち
+                         3,暫定オッズ出力待ち
+                         4,最終オッズ出力待ち
+                         -1,最終オッズ出力済
+       TODO 統合時に導入 jra_flg(bool) : T,中央 F,地方
     '''
 
     def __init__(self, baba_code, race_no, race_time):
@@ -130,5 +169,35 @@ class RaceInfo():
 
 # 動作確認用
 if __name__ == '__main__':
+    # インスタンス作成
     nar = Nar()
-    nar.parameter_set()
+
+    # 時間チェック
+    nar.time_check()
+
+    # 次の記録時間までの時間(秒)
+    left_time = nar.next_get_time - Jst.now()
+
+    print(left_time)
+    exit()
+
+    # TODO 1分以内ならそのまま待機
+    #if left_time
+
+    # 記録時間の5秒前まで待機
+    time.sleep(left_time - datetime.timedelta(seconds = 5))
+
+    # 取得対象レースのオッズを取得
+    for race in nar.race_info:
+        # 暫定オッズを先に取得
+        if race.record_flg == '1':
+            get_odds(race)
+            # 出力待ち状態にフラグ切替
+            race.record_flg = '3'
+
+    for race in nar.race_info:
+        # 暫定オッズ取得後に最終オッズを取得
+        if race.record_flg == '2':
+            get_odds(race)
+            # 出力待ち状態にフラグ切替
+            race.record_flg = '4'

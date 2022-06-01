@@ -1,4 +1,6 @@
-def netkeiba(str):
+import Logger
+
+def netkeiba(Logger):
     '''netkeiba.comのDBで使用されている競馬場コードを変換するメソッド
        ばんえい競馬は「競馬場名+(ば)」、中央と地方両方行われていた競馬場では、
        地方を「競馬場名+(地)」で表記
