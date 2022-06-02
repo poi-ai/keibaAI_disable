@@ -25,7 +25,7 @@ class Nar():
         self.__next_get_time = 0
         self.__write_data = pd.DataFrame(columns = ['馬番', '単勝オッズ', '複勝下限オッズ', '複勝上限オッズ', '記録時刻'])
         self.get_url()
-        self.get_race_info()
+        self.get_race_info(True)
 
     @property
     def baba_url(self):
@@ -65,7 +65,7 @@ class Nar():
             # レースリスト一覧が載っているページのURLを保存
             self.baba_url.append(f'https://www.keiba.go.jp/KeibaWeb/TodayRaceInfo/RaceList?k_raceDate={Nar.RACE_DATE}&k_babaCode={baba_code}')
 
-    def get_race_info(self):
+    def get_race_info(self, init_flg = False):
         '''レース情報を取得'''
         for race_url in self.baba_url:
             # レース情報をDataFrame型で取得
@@ -77,8 +77,20 @@ class Nar():
                 race = race_list.loc[idx]
                 # 時間をdatetime型に変換
                 race_time = datetime.datetime(int(Jst.year()), int(Jst.month()), int(Jst.day()), int(race[1][:2]), int(race[1][3:]), 0)
-                # クラス化して保存(競馬場コード,レース番号,発走時刻)
-                self.__race_info.append(RaceInfo(race_url[-2:], race[0].replace('R', ''), race_time))
+
+                # 最初の処理だけ作成、それ以降は発走時刻のみ更新
+                if init_flg:
+                    # クラス化して保存(競馬場コード,レース番号,発走時刻)
+                    self.__race_info.append(RaceInfo(race_url[-2:], race[0].replace('R', ''), race_time))
+                else:
+                    # 保存済のレース情報の発走時刻と比較
+                    for race in self.race_info:
+                        if race.baba_code == race_url[-2:] and race.race_no == race[0].replace('R', ''):
+                            # 発走時刻が変更となっていたら設定し直し
+                            if race.race_time != race_time:
+                                race.race_time = race_time
+            # 2秒待機
+            time.sleep(2)
 
     def time_check(self):
         '''次のオッズ記録時間までの秒数を計算する'''
@@ -96,18 +108,20 @@ class Nar():
                 # 次のx分00秒からレース発走までの時間
                 time_left = int((race.race_time - NEXT_MINITURES).total_seconds())
 
+                print(self.next_get_time)
+
                 # 発走12分よりも前の場合
                 if time_left > 720:
-                    # TODO
-                    self.next_get_time = min(self.next_get_time.second(), race.race_time.total_seconds())
+                    # TODO 冗長なので修正
+                    self.next_get_time = datetime.datetime.strptime(min(self.next_get_time.strftime("%Y%m%d%H%M%S"), race.race_time.strftime("%Y%m%d%H%M%S")), "%Y%m%d%H%M%S")
                 # 発走12分前から1分以内の場合
                 elif time_left >= 60:
                     race.record_flg = '1'
                     self.next_get_time = NEXT_MINITURES
                 # 発走1分前から発走後20分以内の場合
                 elif time_left > -1200:
-                    # TODO
-                    self.next_get_time = min(self.next_get_time.total_seconds(), race.race_time.total_seconds())
+                    # TODO 冗長なので修正
+                    self.next_get_time = datetime.datetime.strptime(min(self.next_get_time.strftime("%Y%m%d%H%M%S"), race.race_time.strftime("%Y%m%d%H%M%S")), "%Y%m%d%H%M%S")
                 # 発走後20分以降の場合
                 else:
                     race.record_flg = '2'
