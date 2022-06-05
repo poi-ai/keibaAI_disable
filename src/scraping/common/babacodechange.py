@@ -1,4 +1,4 @@
-import Logger
+import logger
 
 def netkeiba(Logger):
     '''netkeiba.comのDBで使用されている競馬場コードを変換するメソッド

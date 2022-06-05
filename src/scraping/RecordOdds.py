@@ -3,7 +3,7 @@ import json
 import time
 import pandas as pd
 import requests
-from common import Logger, Soup, Jst, WriteSheet, CourseCodeChange
+from common import babacodechange, jst, logger, soup, writesheet
 from requests_html import HTMLSession
 
 def main():
@@ -51,11 +51,11 @@ def get_race_id(jra_flg):
     # HTML取得
     if jra_flg == 1:
         # 中央の場合は1つのGETで全てのレースID(URL)を取得できる
-        soups.append(Soup.get_soup('https://race.netkeiba.com/top/race_list_sub.html?kaisai_date=' + TODAY))
+        soups.append(soup.get_soup('https://race.netkeiba.com/top/race_list_sub.html?kaisai_date=' + TODAY))
     elif jra_flg == 0:
         # 地方の場合は各競馬場ごとにGETリクエストする必要がある
         # 稼働日の開催情報の取得
-        course_soup = Soup.get_soup('https://nar.netkeiba.com/top/race_list_sub.html?kaisai_date=' + TODAY)
+        course_soup = soup.get_soup('https://nar.netkeiba.com/top/race_list_sub.html?kaisai_date=' + TODAY)
         course_links = course_soup.find('ul', class_='RaceList_ProvinceSelect')
 
         # 開催なしの場合
@@ -65,7 +65,7 @@ def get_race_id(jra_flg):
         # 稼働日の各競馬場のレース一覧URLを取得
         links = course_links.find_all('a')
         for link in links:
-            soups.append(Soup.get_soup('https://nar.netkeiba.com/top/race_list_sub.html' + link.get('href') + '&kaisai_date=' + TODAY))
+            soups.append(soup.get_soup('https://nar.netkeiba.com/top/race_list_sub.html' + link.get('href') + '&kaisai_date=' + TODAY))
 
     # レースIDを取得
     for soup in soups:
@@ -114,11 +114,11 @@ def time_check():
         if 50 <= diff_time <= 790:
             # レース13分10秒前から50秒前まで暫定オッズを取得
             get_odds(jra_race_id_list[idx], race_time.strftime('%H%M'), 0)
-            logger.info('{}{}Rの{}分前オッズを記録しました'.format(CourseCodeChange.netkeiba(jra_race_id_list[idx][4:6]), jra_race_id_list[idx][10:], int(diff_time / 60)))
+            logger.info('{}{}Rの{}分前オッズを記録しました'.format(babacodechange.netkeiba(jra_race_id_list[idx][4:6]), jra_race_id_list[idx][10:], int(diff_time / 60)))
         elif diff_time <= -1200:
             # レース20分後に最終オッズを取得
             get_odds(jra_race_id_list[idx], race_time.strftime('%H%M'), 1)
-            logger.info('{}{}Rの最終オッズを記録しました'.format(CourseCodeChange.netkeiba(jra_race_id_list[idx][4:6]), jra_race_id_list[idx][10:]))
+            logger.info('{}{}Rの最終オッズを記録しました'.format(babacodechange.netkeiba(jra_race_id_list[idx][4:6]), jra_race_id_list[idx][10:]))
 
             # 最終オッズまで記録したレースは記録済みにする
             record_flg[idx] = 1
@@ -180,7 +180,7 @@ def get_odds_nar(race_id, race_time, complete_flg):
     # TODO
 
     # Googleスプレッドシートに記載を行う
-    WriteSheet.write_spread_sheet(df, int(jst.time()[:6]), df_header)
+    writesheet.write_spread_sheet(df, int(jst.time()[:6]), df_header)
 
 def get_race_time():
     '''レース時刻の取得を行う
@@ -190,7 +190,7 @@ def get_race_time():
 
     '''
     # 稼働日の開催情報サイトのHTMLを取得
-    soup = Soup.get_soup('https://race.netkeiba.com/top/race_list_sub.html?kaisai_date=' + TODAY)
+    soup = soup.get_soup('https://race.netkeiba.com/top/race_list_sub.html?kaisai_date=' + TODAY)
 
     # レース時刻を格納するリスト
     race_time = []
@@ -247,10 +247,10 @@ def get_recent_time(NOW):
 
 if __name__ == '__main__':
     # 日本時間取得クラスのインスタンス作成
-    jst = Jst.Jst()
+    jst = jst.Jst()
 
     # 簡易型ロギングクラスのインスタンス作成
-    logger = Logger.Logger()
+    logger = logger.Logger()
 
     # HTMLSessionのインスタンス作成
     session = HTMLSession()
