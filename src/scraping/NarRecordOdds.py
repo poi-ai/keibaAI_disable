@@ -1,8 +1,8 @@
 import pandas as pd
-import Package
+import package
 import time
 import datetime
-from common import Jst, Soup, CourseCodeChange
+from common import babacodechange, jst, soup
 
 class Nar():
     '''地方競馬オッズ取得クラス
@@ -17,7 +17,7 @@ class Nar():
        write_data(DataFrame) : 書き込み用データ
     '''
     # 日付のGETパラメータ
-    RACE_DATE = f'{Jst.year()}%2f{Jst.month().zfill(2)}%2f{Jst.day().zfill(2)}'
+    RACE_DATE = f'{jst.year()}%2f{jst.month().zfill(2)}%2f{jst.day().zfill(2)}'
 
     def __init__(self):
         self.__baba_url = []
@@ -58,7 +58,7 @@ class Nar():
         baba_names = pd.read_html('https://www.keiba.go.jp/KeibaWeb/TodayRaceInfo/TopTodayRaceInfoMini')[0][0].values.tolist()
 
         # 競馬場名をkeiba.goのパラメータで使われている競馬場番号へ変換する
-        baba_codes = [CourseCodeChange.keibago(place_name) for place_name in baba_names]
+        baba_codes = [babacodechange.keibago(place_name) for place_name in baba_names]
 
         # 各競馬場ごとにレース数と発走時刻を取得する
         for baba_code in baba_codes:
@@ -76,7 +76,7 @@ class Nar():
                 # 1レース切り出し
                 race = race_list.loc[idx]
                 # 時間をdatetime型に変換
-                race_time = datetime.datetime(int(Jst.year()), int(Jst.month()), int(Jst.day()), int(race[1][:2]), int(race[1][3:]), 0)
+                race_time = datetime.datetime(int(jst.year()), int(jst.month()), int(jst.day()), int(race[1][:2]), int(race[1][3:]), 0)
 
                 # 最初の処理だけ作成、それ以降は発走時刻のみ更新
                 if init_flg:
@@ -95,9 +95,9 @@ class Nar():
     def time_check(self):
         '''次のオッズ記録時間までの秒数を計算する'''
         # 現在時刻取得
-        NOW = Jst.now()
+        NOW = jst.now()
         # 次のx時x分00秒
-        NEXT_MINITURES = NOW + datetime.timedelta(seconds = 60 - int(Jst.second()))
+        NEXT_MINITURES = NOW + datetime.timedelta(seconds = 60 - int(jst.second()))
         # 次の取得時間をリセット
         self.next_get_time = NOW + datetime.timedelta(days = 1)
 
@@ -134,7 +134,7 @@ class Nar():
         # 馬番・単勝オッズ・複勝オッズの列のみ抽出
         odds_data = odds_table.loc[:, ['馬番', '単勝オッズ', odds_table.columns[4], odds_table.columns[5]]]
         # 現在時刻(yyyyMMddHHMMSS)カラムの追加
-        odds_data['time'] = [Jst.time() for _ in range(len(odds_data))]
+        odds_data['time'] = [jst.time() for _ in range(len(odds_data))]
         # 結合用にカラム名振り直し
         odds_data.set_axis(self.write_data.columns, axis = 1, inplace = True)
         # 一時保存用変数に格納
@@ -219,7 +219,7 @@ if __name__ == '__main__':
         nar.time_check()
 
         # 次の記録時間までの時間(秒)
-        time_left = int((nar.next_get_time - Jst.now()).total_seconds())
+        time_left = int((nar.next_get_time - jst.now()).total_seconds())
 
         # TODO 1分以内ならそのまま待機
 

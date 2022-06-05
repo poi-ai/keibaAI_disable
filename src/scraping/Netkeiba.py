@@ -6,7 +6,7 @@ import re
 import sys
 import time
 import tqdm
-from common import Soup, WordChange as wc
+from common import soup, wordchange as wc
 
 def main():
     # 引数の妥当性チェック
@@ -38,7 +38,7 @@ def main():
                 hold_list = hold_list[:hold_list.index(END_RACE_DATE) + 1]
             else:
                 hold_list = hold_list[:hold_list.index(END_RACE_DATE)]
-        
+
         # 開催日の各レース番号を取得
         race_id_list.append(get_race(hold_list))
 
@@ -48,7 +48,7 @@ def main():
             month = '1'
         else:
             month = str(int(month) + 1)
-    
+
     # 一元化
     race_id_list = list(itertools.chain.from_iterable(race_id_list))
 
@@ -67,7 +67,7 @@ def get_info(soup):
 
     Returns:
         race_info(list[str]): レース情報を持つリスト
-    
+
     '''
     race_info = []
     states_info = soup.find('div', class_='RaceData01').get_text(strip = False).split('/')
@@ -92,7 +92,7 @@ def get_info(soup):
     race_info.append(re.sub(del_letter, '', states_info[2]))
     # 馬場状態
     race_info.append(re.sub(del_letter, '', states_info[3]))
-    
+
     # リストの1次元化
     # race_info = list(itertools.chain.from_iterable(race_info))
     #print(race_info)
@@ -109,7 +109,7 @@ def get_info(soup):
     race_info.append(wc.full_to_half(race_kind[3]))
     # グレード
     race_info.append(wc.full_to_half(race_kind[4]))
-    
+
     if len(race_kind) == 8:
         pass
     elif len(race_kind) == 9:
@@ -119,7 +119,7 @@ def get_info(soup):
     print(race_info)
     exit()
     return []
-    
+
 
 def scraping_race(race_id):
     '''レース番号からレース情報・結果をスクレイピング
@@ -129,14 +129,14 @@ def scraping_race(race_id):
 
     Returns:
         df(pandas.DataFrame):レース情報と各馬の情報・結果をもったデータ
-    
+
     '''
     # レース結果のURLからHTMLデータをスクレイピング
     result_url = 'https://db.netkeiba.com/race/' + race_id
 
     df = pd.read_html(result_url)[0]
-    
-    soup = Soup.get_soup(result_url)
+
+    soup = soup.get_soup(result_url)
 
     # TODO データ加工
 
@@ -150,7 +150,7 @@ def get_race(hold_list):
 
     Returns:
         race_id_list(list):対象年月日のレースIDを要素に持つリスト
-        
+
     '''
     # 各開催日からレースIDをリストに代入
     race_id_list = []
@@ -158,7 +158,7 @@ def get_race(hold_list):
         cource_url = 'https://race.netkeiba.com/top/race_list_sub.html?kaisai_date='\
                    + hold_date
 
-        soup = Soup.get_soup(cource_url)
+        soup = soup.get_soup(cource_url)
         links = soup.find_all('a')
 
         for link in links:
@@ -184,7 +184,7 @@ def get_date(years, month):
           + '&month='\
           + month
 
-    soup = Soup.get_soup(url)
+    soup = soup.get_soup(url)
     links = soup.find_all('a')
     hold_list = []
     for link in links:
@@ -204,7 +204,7 @@ def argv_check():
     # 引数の数チェック
     if len(sys.argv) != 3:
         raise ValueError('入力した引数の数が間違っています')
-    
+
     # フォーマットチェック
     try:
         date_argv1 = datetime.datetime.strptime(sys.argv[1], '%Y%m%d')
