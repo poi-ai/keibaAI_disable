@@ -81,7 +81,7 @@ class Nar():
                 # 最初の処理だけ作成、それ以降は発走時刻のみ更新
                 if init_flg:
                     # クラス化して保存(競馬場コード,レース番号,発走時刻)
-                    self.__race_info.append(RaceInfo(race_url[-2:], race[0].replace('R', ''), race_time))
+                    self.__race_info.append(RaceInfo(race_url[-2:].replace('=', ''), race[0].replace('R', ''), race_time))
                 else:
                     # 保存済のレース情報の発走時刻と比較
                     for race in self.race_info:
@@ -138,7 +138,7 @@ class Nar():
         # 結合用にカラム名振り直し
         odds_data.set_axis(self.write_data.columns, axis = 1, inplace = True)
         # 一時保存用変数に格納
-        self.write_data = pd.Concat([odds_data, self.write_data])
+        self.write_data = pd.concat([odds_data, self.write_data])
 
     def record_odds(self):
         '''取得したオッズをooに書き込む'''
