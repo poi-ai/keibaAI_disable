@@ -57,7 +57,7 @@ class Nar():
 
         # keiba.go.jpから稼働日に開催のある競馬場名を取得する
         baba_names = pd.read_html('https://www.keiba.go.jp/KeibaWeb/TodayRaceInfo/TopTodayRaceInfoMini')[0][0].values.tolist()
-
+        logger.info('開催テーブル取得')
         # 競馬場名をkeiba.goのパラメータで使われている競馬場番号へ変換する
         baba_codes = [babacodechange.keibago(place_name) for place_name in baba_names]
 
@@ -66,11 +66,14 @@ class Nar():
             # レースリスト一覧が載っているページのURLを保存
             self.baba_url.append(f'https://www.keiba.go.jp/KeibaWeb/TodayRaceInfo/RaceList?k_raceDate={Nar.RACE_DATE}&k_babaCode={baba_code}')
 
+        time.sleep(3)
+
     def get_race_info(self, init_flg = False):
         '''レース情報を取得'''
         for race_url in self.baba_url:
             # レース情報をDataFrame型で取得
             race_list = pd.read_html(race_url)[0]
+            logger.info(f'{babacodechange.keibago(race_url[-2:].replace("=", ""))}競馬場のレーステーブル取得')
 
             # 1レースごとの情報取得
             for idx in race_list.index:
@@ -85,11 +88,12 @@ class Nar():
                     self.__race_info.append(RaceInfo(race_url[-2:].replace('=', ''), race[0].replace('R', ''), race_time))
                 else:
                     # 保存済のレース情報の発走時刻と比較
-                    for race in self.race_info:
-                        if race.baba_code == race_url[-2:] and race.race_no == race[0].replace('R', ''):
+                    for race_info in self.race_info:
+                        if race_info.baba_code == race_url[-2:].replace('=', '') and race_info.race_no == race[0].replace('R', ''):
                             # 発走時刻が変更となっていたら設定し直し
-                            if race.race_time != race_time:
-                                race.race_time = race_time
+                            if race_info.race_time != race_time:
+                                logger.info(f'レース時間更新 {babacodechange.keibago(race_info.baba_code)}{race_info.race_no}R {race_info.race_time}→{race_time}')
+                                race_info.race_time = race_time
             # 2秒待機
             time.sleep(2)
 
@@ -99,7 +103,7 @@ class Nar():
 
     def time_check(self):
         '''次のオッズ記録時間までの秒数を計算する'''
-        logger.info('発送予定時刻更新処理開始')
+        logger.info('オッズ記録時間チェック処理開始')
         # 現在時刻取得
         NOW = jst.now()
         # 次のx時x分00秒
@@ -131,12 +135,13 @@ class Nar():
                     race.record_flg = '2'
                     self.next_get_time = NEXT_MINITURES
 
-        logger.info(f'次の記録時間まで{self.next_get_time}秒')
+        logger.info(f'次の記録時間まで{(self.next_get_time - jst.now()).total_seconds()}秒')
 
     def get_odds(self, race):
         '''(単勝・複勝)オッズの取得・記録を行う'''
         # オッズのテーブルを取得
         odds_table = pd.read_html(f'https://www.keiba.go.jp/KeibaWeb/TodayRaceInfo/OddsTanFuku?k_raceDate={Nar.RACE_DATE}&k_raceNo={race.race_no}&k_babaCode={race.baba_code}')[0]
+        logger.info(f'{babacodechange.keibago(race.baba_code)}{race.race_no}Rの{"暫定" if race.record_flg == "1" else "最終"}オッズテーブル取得')
         # 馬番・単勝オッズ・複勝オッズの列のみ抽出
         odds_data = odds_table.loc[:, ['馬番', '単勝オッズ', odds_table.columns[4], odds_table.columns[5]]]
         # 現在時刻(yyyyMMddHHMMSS)カラムの追加
@@ -228,16 +233,18 @@ if __name__ == '__main__':
     while nar.end_check():
 
         while True:
-            # 発走時刻チェック/更新
+            # 発走時間更新
+            nar.get_race_info()
+
+            # 発走までの時間チェック
             nar.time_check()
 
             # 次の記録時間までの時間(秒)
             time_left = int((nar.next_get_time - jst.now()).total_seconds())
 
-            print(time_left)
             # 11分以上なら10分後に発走時刻再チェック
             if time_left > 660:
-                time.sleep(time_left - 60)
+                time.sleep(600)
             elif time_left > 1:
                 time.sleep(time_left - 1)
                 break
@@ -266,6 +273,6 @@ if __name__ == '__main__':
             else:
                 break
 
-        # 記録データが格納されていてx分50秒をすぎていなければ記録
-        if jst.second() <= 50 and len(nar.race_data) != 0:
+        # 記録データが格納されていてx分50秒を過ぎていなければ記録
+        if int(jst.second()) <= 50 and len(nar.race_data) != 0:
             nar.record_odds()
