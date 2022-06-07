@@ -1,6 +1,6 @@
 import logger
 
-def netkeiba(Logger):
+def netkeiba():
     '''netkeiba.comのDBで使用されている競馬場コードを変換するメソッド
        ばんえい競馬は「競馬場名+(ば)」、中央と地方両方行われていた競馬場では、
        地方を「競馬場名+(地)」で表記
@@ -30,7 +30,7 @@ def netkeiba(Logger):
     if str in COURSE.values():
         return [i for i, v in COURSE.items() if v == str][0]
 
-    Logger.error('netkeibaの競馬場コード変換に失敗しました')
+    #logger.error('netkeibaの競馬場コード変換に失敗しました')
 
 def rakuten(str):
     '''楽天競馬のDBで使用されている競馬場コードを変換するメソッド
@@ -60,7 +60,7 @@ def rakuten(str):
     if str in COURSE.values():
         return [i for i, v in COURSE.items() if v == str][0]
 
-    Logger.error('楽天競馬の競馬場コード変換に失敗しました')
+    #logger.error('楽天競馬の競馬場コード変換に失敗しました')
 
 def keibago(str):
     '''keiba.go.jpで使用されている競馬場コードを変換するメソッド
@@ -87,4 +87,4 @@ def keibago(str):
     if str in COURSE.values():
         return [i for i, v in COURSE.items() if v == str][0]
 
-    Logger.error('keiba.go.jpの競馬場コード変換に失敗しました')
+    #logger.error('keiba.go.jpの競馬場コード変換に失敗しました')
