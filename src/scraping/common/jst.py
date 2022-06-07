@@ -36,3 +36,8 @@ def minute():
 def second():
     '''現在の秒(JST)をstr型[S(0埋めなし)]で返す'''
     return str(now().second)
+
+# TODO ここでいいかは要検討
+def time_min(time1, time2):
+    '''datetime型の値を比較し、古い(小さい)方をdatetime型で返す'''
+    return datetime.datetime.strptime(min(time1.strftime("%Y%m%d%H%M%S"), time2.strftime("%Y%m%d%H%M%S")), "%Y%m%d%H%M%S")
