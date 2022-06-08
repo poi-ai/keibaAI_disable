@@ -29,10 +29,10 @@ class Logger():
         # ログ出力設定
         if self.output != 0:
             # ログフォルダチェック。無ければ作成
-            if not os.path.exists('log'):
-                os.makedirs('log')
+            if not os.path.exists('../../log'):
+                os.makedirs('../../log')
             # 出力先を設定
-            handler = logging.FileHandler('log/' + Path(inspect.stack()[1].filename).stem +'.log')
+            handler = logging.FileHandler('../../log/' + Path(inspect.stack()[1].filename).stem +'.log')
             # 出力レベルを設定
             handler.setLevel(logging.INFO)
             # フォーマットの設定

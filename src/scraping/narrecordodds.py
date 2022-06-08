@@ -2,7 +2,7 @@ import pandas as pd
 import package
 import time
 import datetime
-from common import babacodechange, jst, logger
+from common import babacodechange, jst, logger, writecsv
 
 class Nar():
     '''地方競馬オッズ取得クラス
@@ -92,7 +92,7 @@ class Nar():
                         if race_info.baba_code == race_url[-2:].replace('=', '') and race_info.race_no == race[0].replace('R', ''):
                             # 発走時刻が変更となっていたら設定し直し
                             if race_info.race_time != race_time:
-                                logger.info(f'レース時間更新 {babacodechange.keibago(race_info.baba_code)}{race_info.race_no}R {race_info.race_time}→{race_time}')
+                                logger.info(f'レース時間変更 {babacodechange.keibago(race_info.baba_code)}{race_info.race_no}R {race_info.race_time}→{race_time}')
                                 race_info.race_time = race_time
             # 2秒待機
             time.sleep(2)
@@ -153,8 +153,7 @@ class Nar():
 
     def record_odds(self):
         '''取得したオッズをooに書き込む'''
-        # TODO WriteCsv.write_csv()
-        # TODO WriteSheet.write_spread_sheet(Jst.month(), self.__write_data, odds_columns)
+        writecsv.write_csv()
 
         # 出力待ちのフラグを変更する
         for race in self.race_info:
@@ -246,7 +245,7 @@ if __name__ == '__main__':
             if time_left > 660:
                 time.sleep(600)
             elif time_left > 1:
-                time.sleep(time_left - 1)
+                time.sleep(time_left)
                 break
             else:
                 break
