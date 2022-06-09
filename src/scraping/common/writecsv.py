@@ -3,7 +3,7 @@ import jst
 import os
 import pandas as pd
 
-def write_csv(df,):
+def write_csv(df):
     '''CSVにデータファイルを出力する
 
     Args:
