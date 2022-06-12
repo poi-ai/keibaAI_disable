@@ -142,7 +142,7 @@ class Nar():
         odds_table = pd.read_html(f'https://www.keiba.go.jp/KeibaWeb/TodayRaceInfo/OddsTanFuku?k_raceDate={Nar.RACE_DATE}&k_raceNo={race.race_no}&k_babaCode={race.baba_code}')[0]
         logger.info(f'{babacodechange.keibago(race.baba_code)}{race.race_no}Rの{"暫定" if race.record_flg == "1" else "最終"}オッズ取得')
         # 馬番・単勝オッズ・複勝オッズの列のみ抽出
-        odds_data = odds_table.loc[:, ['馬番', '単勝オッズ', odds_table.columns[4], odds_table.columns[5]]].replace('-', '')
+        odds_data = odds_table.loc[:, ['馬番', '単勝オッズ', odds_table.columns[4], odds_table.columns[5]]].replace('-', '', regex = True)
         # 最左列にレースIDのカラム追加
         odds_data.insert(0, 'race_id', jst.year() + jst.month().zfill(2) + jst.day().zfill(2) + race.baba_code.zfill(2) + race.race_no.zfill(2))
         # 最右列に現在時刻(yyyyMMddHHMMSS)カラムの追加

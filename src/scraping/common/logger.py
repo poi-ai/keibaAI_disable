@@ -17,6 +17,7 @@ class Logger():
     def __init__(self, output=None):
         self.logger = logging.getLogger()
         self.output = output
+        self.filename = Path(inspect.stack()[1].filename).stem
         self.set()
 
     def set(self):
@@ -32,7 +33,7 @@ class Logger():
             if not os.path.exists('../../log'):
                 os.makedirs('../../log')
             # 出力先を設定
-            handler = logging.FileHandler('../../log/' + Path(inspect.stack()[1].filename).stem +'.log')
+            handler = logging.FileHandler(f'../../log/{self.filename}.log')
             # 出力レベルを設定
             handler.setLevel(logging.INFO)
             # フォーマットの設定
