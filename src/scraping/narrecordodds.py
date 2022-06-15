@@ -20,6 +20,8 @@ class Nar():
     RACE_DATE = f'{jst.year()}%2f{jst.month().zfill(2)}%2f{jst.day().zfill(2)}'
 
     def __init__(self):
+        logger.info('----------------------------')
+        logger.info('地方競馬オッズ記録システム起動')
         logger.info('初期処理開始')
         self.__baba_url = []
         self.__race_info = []
@@ -114,8 +116,8 @@ class Nar():
         # 各レース毎に次のx分00秒が記録対象かチェック
         for race in self.race_info:
 
-            # 記録待ちの場合
-            if race.record_flg == '0' or race.record_flg == '3':
+            # 最終出力待ちか記録済以外の場合
+            if race.record_flg != '4' and race.record_flg != '-1':
                 # 次のx分00秒からレース発走までの時間
                 time_left = int((race.race_time - NEXT_MINITURES).total_seconds())
 
@@ -134,7 +136,20 @@ class Nar():
                     race.record_flg = '2'
                     self.next_get_time = NEXT_MINITURES
 
-        logger.info(f'次の記録時間まで{(self.next_get_time - jst.now()).total_seconds()}秒')
+        # 次の記録時間までの時間(秒)
+        time_left = int((self.next_get_time - jst.now()).total_seconds())
+
+        logger.info(f'次の記録時間まで{time_left}秒')
+
+        # 11分以上なら10分後に発走時刻再チェック
+        if time_left > 660:
+            time.sleep(600)
+            return False
+        elif time_left > 1:
+            time.sleep(time_left + 1)
+            return True
+        else:
+            return True
 
     def get_odds(self, race):
         '''(単勝・複勝)オッズの取得・記録を行う'''
@@ -173,12 +188,44 @@ class Nar():
             if race.record_flg == '4':
                 race.record_flg = '-1'
 
+        logger.info('オッズデータをCSVへ出力')
+
     def end_check(self):
         '''全レース記録済みかのチェックを行う'''
         for race in self.race_info:
             if race.record_flg != '-1':
                 return True
         return False
+
+    def get_select(self):
+        '''オッズ取得順の決定'''
+
+        # 取得回数記録
+        get_count = 0
+
+        # 暫定オッズを先に取得
+        for race in self.race_info:
+            if race.record_flg == '1':
+                self.get_odds(race)
+                race.record_flg = '3'
+                get_count += 1
+
+            # アクセス過多防止のため、5レース取得ごとに1秒待機(バグリカバリ)
+            if get_count % 5 == 0 and get_count != 0:
+                time.sleep(1)
+
+        time.sleep(2)
+
+        # 暫定オッズ取得後に最終オッズを取得
+        for race in self.race_info:
+            if race.record_flg == '2':
+                self.get_odds(race)
+                race.record_flg = '4'
+                time.sleep(3)
+
+            # x分40秒を超えたら取得を後回しに
+            if int(jst.second()) > 40:
+                break
 
 class RaceInfo():
     '''各レースの情報を保持を行う
@@ -241,9 +288,6 @@ if __name__ == '__main__':
     # ログ用インスタンス作成
     logger = logger.Logger()
 
-    logger.info('----------------------------')
-    logger.info('地方競馬オッズ記録システム起動')
-
     # 地方競馬用インスタンス作成
     nar = Nar()
 
@@ -254,49 +298,13 @@ if __name__ == '__main__':
             # 発走時間更新
             nar.get_race_info()
 
-            # 発走までの時間チェック
-            nar.time_check()
-
-            # 次の記録時間までの時間(秒)
-            time_left = int((nar.next_get_time - jst.now()).total_seconds())
-
-            # 11分以上なら10分後に発走時刻再チェック
-            if time_left > 660:
-                time.sleep(600)
-            elif time_left > 1:
-                time.sleep(time_left + 1)
-                break
-            else:
+            # 発走までの時間チェック待機
+            if nar.time_check():
                 break
 
-        # 取得回数記録
-        get_count = 0
-
-        # 暫定オッズを先に取得
-        for race in nar.race_info:
-            if race.record_flg == '1':
-                nar.get_odds(race)
-                race.record_flg = '3'
-                get_count += 1
-
-            # アクセス過多防止のため、5レース取得ごとに1秒待機(バグリカバリ)
-            if get_count % 5 == 0 and get_count != 0:
-                time.sleep(1)
-
-        time.sleep(2)
-
-        # 暫定オッズ取得後に最終オッズを取得
-        for race in nar.race_info:
-            if race.record_flg == '2':
-                nar.get_odds(race)
-                race.record_flg = '4'
-                time.sleep(3)
-
-            # x分40秒を超えたら取得を後回しに
-            if int(jst.second()) > 40:
-                break
+        # オッズ取得処理
+        nar.get_select()
 
         # 記録データが格納されていてx分40秒を過ぎていなければCSV出力
         if int(jst.second()) <= 40 and len(nar.write_data) != 0:
             nar.record_odds()
-            logger.info('オッズデータをCSVへ出力')
