@@ -1,8 +1,9 @@
 import pandas as pd
 import package
 import time
+import traceback
 import datetime
-from common import babacodechange, jst, logger, writecsv
+from common import babacodechange, jst, logger, writecsv, pd_read
 
 class Nar():
     '''地方競馬オッズ取得クラス
@@ -58,8 +59,13 @@ class Nar():
         '''稼働日の各競馬場のレースリストURLを取得する'''
 
         # keiba.go.jpから稼働日に開催のある競馬場名を取得する
-        baba_names = pd.read_html('https://www.keiba.go.jp/KeibaWeb/TodayRaceInfo/TopTodayRaceInfoMini')[0][0].values.tolist()
-        logger.info('開催テーブル取得')
+        result = pd_read.html('https://www.keiba.go.jp/KeibaWeb/TodayRaceInfo/TopTodayRaceInfoMini')
+        if result == -1:
+            logger.error(f'開催情報の取得に失敗しました')
+            raise
+
+        baba_names = result[0][0].values.tolist()
+        logger.info('開催情報取得')
         # 競馬場名をkeiba.goのパラメータで使われている競馬場番号へ変換する
         baba_codes = [babacodechange.keibago(place_name) for place_name in baba_names]
 
@@ -74,7 +80,13 @@ class Nar():
         '''レース情報を取得'''
         for race_url in self.baba_url:
             # レース情報をDataFrame型で取得
-            race_list = pd.read_html(race_url)[0]
+            result = pd_read.html(race_url)
+            if result == -1:
+                logger.error(f'レース情報の取得に失敗しました')
+                raise
+
+            race_list = result[0]
+
             logger.info(f'{babacodechange.keibago(race_url[-2:].replace("=", ""))}競馬場のレーステーブル取得')
 
             # 1レースごとの情報取得
@@ -154,7 +166,13 @@ class Nar():
     def get_odds(self, race):
         '''(単勝・複勝)オッズの取得・記録を行う'''
         # オッズのテーブルを取得
-        odds_table = pd.read_html(f'https://www.keiba.go.jp/KeibaWeb/TodayRaceInfo/OddsTanFuku?k_raceDate={Nar.RACE_DATE}&k_raceNo={race.race_no}&k_babaCode={race.baba_code}')[0]
+        result = pd_read.html(f'https://www.keiba.go.jp/KeibaWeb/TodayRaceInfo/OddsTanFuku?k_raceDate={Nar.RACE_DATE}&k_raceNo={race.race_no}&k_babaCode={race.baba_code}')
+        if result == -1:
+            logger.error(f'オッズテーブルの取得に失敗しました')
+            raise
+
+        odds_table = result[0]
+
         logger.info(f'{babacodechange.keibago(race.baba_code)}{race.race_no}Rの{"暫定" if race.record_flg == "1" else "最終"}オッズ取得')
         # 馬番・単勝オッズ・複勝オッズの列のみ抽出
         odds_data = odds_table.loc[:, ['馬番', '単勝オッズ', odds_table.columns[4], odds_table.columns[5]]].replace('-', '', regex = True)
@@ -229,7 +247,6 @@ class Nar():
 
 class RaceInfo():
     '''各レースの情報を保持を行う
-
     Instance Parameter:
        baba_code(str) : 競馬場コード
        race_no(str) : レース番号,xxRのxxの部分
@@ -289,22 +306,52 @@ if __name__ == '__main__':
     logger = logger.Logger()
 
     # 地方競馬用インスタンス作成
-    nar = Nar()
+    try:
+        nar = Nar()
+    except Exception as e:
+        logger.error('初期処理でエラー')
+        logger.error(e)
+        logger.error(traceback.format_exc())
+        exit()
 
     # 全レース記録済かチェック
     while nar.end_check():
 
         while True:
-            # 発走時間更新
-            nar.get_race_info()
+            try:
+                # 発走時刻更新
+                nar.get_race_info()
+            except Exception as e:
+                logger.error('発走時刻更新処理でエラー')
+                logger.error(e)
+                logger.error(traceback.format_exc())
+                exit()
 
             # 発走までの時間チェック待機
-            if nar.time_check():
-                break
+            try:
+                if nar.time_check():
+                    break
+            except Exception as e:
+                logger.error('発走時刻までの待機処理でエラー')
+                logger.error(e)
+                logger.error(traceback.format_exc())
+                exit()
 
-        # オッズ取得処理
-        nar.get_select()
+        try:
+            # オッズ取得処理
+            nar.get_select()
+        except Exception as e:
+            logger.error('オッズ取得処理でエラー')
+            logger.error(e)
+            logger.error(traceback.format_exc())
+            exit()
 
         # 記録データが格納されていてx分40秒を過ぎていなければCSV出力
         if int(jst.second()) <= 40 and len(nar.write_data) != 0:
-            nar.record_odds()
+            try:
+                nar.record_odds()
+            except Exception as e:
+                logger.error('オッズ出力処理でエラー')
+                logger.error(e)
+                logger.error(traceback.format_exc())
+                exit()
