@@ -27,7 +27,7 @@ class Nar():
         self.__baba_url = []
         self.__race_info = []
         self.__next_get_time = 0
-        self.__write_data = pd.DataFrame(columns = ['レースID','馬番', '単勝オッズ', '複勝下限オッズ', '複勝上限オッズ', '記録時刻', 'JRAフラグ'])
+        self.__write_data = pd.DataFrame(columns = ['レースID','馬番', '単勝オッズ', '複勝下限オッズ', '複勝上限オッズ', '記録時刻', '発走残り', 'JRAフラグ'])
         self.get_url()
         self.get_race_info(True)
 
@@ -137,7 +137,7 @@ class Nar():
                 if time_left > 720:
                     self.next_get_time = jst.time_min(self.next_get_time, race.race_time - datetime.timedelta(seconds = 720))
                 # 発走12分前から1分以内の場合
-                elif time_left >= 60:
+                elif time_left >= 59:
                     race.record_flg = '1'
                     self.next_get_time = NEXT_MINITURES
                 # 発走1分前から発走後20分以内の場合
@@ -173,15 +173,13 @@ class Nar():
 
         odds_table = result[0]
 
-        logger.info(f'{babacodechange.keibago(race.baba_code)}{race.race_no}Rの{"暫定" if race.record_flg == "1" else "最終"}オッズ取得')
+        logger.info(f'{babacodechange.keibago(race.baba_code)}{race.race_no}Rの{str(round((race.race_time - jst.now()).total_seconds() / 60)) + "分前" if race.record_flg == "1" else "最終"}オッズ取得')
         # 馬番・単勝オッズ・複勝オッズの列のみ抽出
         odds_data = odds_table.loc[:, ['馬番', '単勝オッズ', odds_table.columns[4], odds_table.columns[5]]].replace('-', '', regex = True)
         # 最左列にレースIDのカラム追加
         odds_data.insert(0, 'race_id', jst.year() + jst.month().zfill(2) + jst.day().zfill(2) + race.baba_code.zfill(2) + race.race_no.zfill(2))
-        # 最右列に現在時刻(yyyyMMddHHMMSS)カラムの追加
-        odds_data['time'] = [jst.time() for _ in range(len(odds_data))]
-        # 最右列にJRAフラグカラムの追加
-        odds_data['jra_flg'] = ['0' for _ in range(len(odds_data))]
+        # 最右列に現在時刻(yyyyMMddHHMMSS)・発走までの残り時間(秒)・JRAフラグの追加
+        odds_data = pd.concat([odds_data, pd.DataFrame([[jst.time(), max(-1, int((race.race_time - jst.now()).total_seconds())), '0'] for _ in range(len(odds_data))], index = odds_data.index)], axis = 1)
         # 結合用にカラム名振り直し
         odds_data.set_axis(self.write_data.columns, axis = 1, inplace = True)
         # 一時保存用変数に格納
