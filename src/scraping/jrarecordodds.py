@@ -40,7 +40,7 @@ class Jra():
         self.get_param('odds')
         self.get_param('info')
         self.get_race_info(True)
-        logger.info(f'初期処理終了 開催場数：{len(self.baba_url)} 記録対象レース数：{len(self.race_info)}')
+        logger.info(f'初期処理終了 開催場数：{len(self.odds_param)} 記録対象レース数：{len(self.race_info)}')
 
     @property
     def odds_param(self):
@@ -104,8 +104,6 @@ class Jra():
         param = [m.group(1) for m in re.finditer('access.\.html\', \'(\w+/\w+)', str(html))]
 
         return param
-        # 一次元化して返す(後々必要？)
-        # return list(itertools.chain.from_iterable(param))
 
     def extract_info(self, param):
         '''doActionの第二引数からレース情報を抽出する
@@ -126,7 +124,7 @@ class Jra():
 
         Args:
             page_type(str):サイトの種類
-                           odds:オッズ関連ページ,info:出馬表関連ページ
+                           odds:オッズページ,info:出馬表ページ
 
         '''
         # 今週の開催一覧ページのHTMLを取得
@@ -142,27 +140,21 @@ class Jra():
         soup = BeautifulSoup(str(kaisai_frame), 'lxml')
         kaisai_dates = soup.find_all('h3')
 
-        today_position = -1
-
         for i, kaisai_date in enumerate(kaisai_dates):
-            '''TODO 平日に動作確認のためコメントアウト
             # レース日と稼働日が一致する枠の番号を取得
-            m = re.search('(\d+)月(\d+)日', kaisai_date)
+            m = re.search(r'(\d+)月(\d+)日', str(kaisai_date))
             if jst.month() == m.group(1) and jst.day() == m.group(2):
-                today_position = i
-                break
-            '''
-            today_position = i
-            break
+                # 合致した枠内のHTMLを取得
+                links = BeautifulSoup(str(soup.find_all('div', class_='link_list multi div3 center')[i]), 'lxml')
+                # パラメータを抽出しインスタンス変数に格納
+                if page_type == 'odds':
+                    self.odds_param = self.extract_param(links)
+                else:
+                    self.info_param = self.extract_param(links)
+                return
 
-        # 合致した枠内のHTMLを取得
-        links = BeautifulSoup(str(soup.find_all('div', class_='link_list multi div3 center')[today_position]), 'lxml')
-        # パラメータを抽出しインスタンス変数に格納
-        if page_type == 'odds':
-            self.odds_param = self.extract_param(links)
-        else:
-            self.info_param = self.extract_param(links)
-        time.sleep(3)
+        logger.info('本日行われるレースはありません')
+        exit()
 
     def get_race_info(self, init_flg = False):
         '''レース情報を取得
@@ -170,36 +162,44 @@ class Jra():
         Args:
             init_flg(bool) : 初期処理(インスタンス作成)か主処理(インスタンス更新)か
                              T:初期処理,F:主処理
-
         '''
         race_time = []
 
         # 発走時刻の切り出し
         for param in self.info_param:
             soup = self.do_action(param)
-            info_table = pd.read_html(str(soup))[0]
+            info_table = pd_read.html(str(soup))[0]
             time_table = [i.replace('時', '').replace('分', '') for i in info_table['発走時刻']]
             race_time.append(time_table)
 
-        for kaisai_num, list_param in enumerate(self.odds_param):
-            soup = self.do_action(list_param)
+        if init_flg:
+            # 初期処理の場合はレース情報も合わせて取得
+            for kaisai_num, list_param in enumerate(self.odds_param):
+                soup = self.do_action(list_param)
 
-            # 単勝・複勝オッズページのパラメータを取得
-            tanpuku = [self.extract_param(str(i))[0] for i in soup.find_all('div', class_='tanpuku')]
+                # 単勝・複勝オッズページのパラメータを取得
+                tanpuku = [self.extract_param(str(i))[0] for i in soup.find_all('div', class_='tanpuku')]
 
-            ######## MEMO #######
-            # find_allの第二引数を↓に書き換えれば、別の馬券のパラメータも取得できる
-            # wakuren,umaren,wide,umatan,trio,tierce
-            #####################
+                ######## MEMO #######
+                # find_allの第二引数を↓に書き換えれば、別の馬券のパラメータも取得できる
+                # wakuren,umaren,wide,umatan,trio,tierce
+                #####################
 
-            # TODO
-            for race_num, param in enumerate(tanpuku):
-                self.race_info.append(RaceInfo(param, param[9:11], param[19:21], race_time[kaisai_num][race_num]))
+                # レース情報をRaceInfo型で保存する
+                for race_num, param in enumerate(tanpuku):
+                    self.race_info.append(RaceInfo(param, param[9:11], param[19:21], race_time[kaisai_num][race_num]))
 
-                print(f'{param} {param[9:11]} {param[19:21]} {race_time[kaisai_num][race_num]}')
+                time.sleep(2)
+        else:
+            # TODO 主処理の場合は発走時間が更新されているかのチェック
+            pass
 
-            time.sleep(2)
-            exit()
+    def end_check(self):
+        '''全レース記録済みかのチェックを行う'''
+        for race in self.race_info:
+            if race.record_flg != '-1':
+                return True
+        return False
 
 
 class RaceInfo():
@@ -228,7 +228,7 @@ class RaceInfo():
 
     @property
     def race_param(self):
-        return self.race_param
+        return self.__race_param
 
     @property
     def baba_code(self):
@@ -277,3 +277,16 @@ if __name__ == '__main__':
         logger.error(e)
         logger.error(traceback.format_exc())
         exit()
+
+    # 全レース記録済かチェック
+    while jra.end_check():
+        while True:
+            try:
+                # 発走時刻更新
+                jra.get_race_info()
+            except Exception as e:
+                logger.error('発走時刻更新処理でエラー')
+                logger.error(e)
+                logger.error(traceback.format_exc())
+                exit()
+            exit()
