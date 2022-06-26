@@ -24,11 +24,7 @@ def netkeiba():
               '中京(地)': '61', '春木': '62', '北見(ば)': '63', '岩見沢(ば)': '64', '帯広(ば)': '65',\
               '旭川(ば)': '66'}
 
-    if str in COURSE:
-        return COURSE[str]
-
-    if str in COURSE.values():
-        return [i for i, v in COURSE.items() if v == str][0]
+    return check(str, COURSE)
 
     #logger.error('netkeibaの競馬場コード変換に失敗しました')
 
@@ -54,11 +50,7 @@ def rakuten(str):
               '高知': '31', '佐賀': '32', '荒尾': '33', '中津': '34', '春木': '35',\
               '門別': '36'}
 
-    if str in COURSE:
-        return COURSE[str]
-
-    if str in COURSE.values():
-        return [i for i, v in COURSE.items() if v == str][0]
+    return check(str, COURSE)
 
     #logger.error('楽天競馬の競馬場コード変換に失敗しました')
 
@@ -81,10 +73,33 @@ def keibago(str):
               '中京': '25', '紀三井寺': '26', '園田': '27', '姫路': '28', '益田': '29',\
               '福山': '30', '高知': '31', '佐賀': '32', '荒尾': '33', '中津': '34', '門別': '36'}
 
+    return check(str, COURSE)
+
+    #logger.error('keiba.go.jpの競馬場コード変換に失敗しました')
+
+def jra(str):
+    '''JRAで使用されている競馬場コードを変換するメソッド
+
+    Args:
+        str(str):競馬場名 あるいは 競馬場コード
+
+    Returns:
+        引数が競馬場名の場合は競馬場コード
+        引数が競馬上コードの場合は競馬場名
+
+    '''
+    COURSE = {'札幌': '01', '函館': '02', '福島': '03', '新潟': '04', '東京': '05',\
+              '中山': '06', '中京': '07', '京都': '08', '阪神': '09', '小倉': '10'}
+
+    return check(str, COURSE)
+
+    #logger.error('JRAの競馬場コード変換に失敗しました')
+
+def check(str, COURSE):
     if str in COURSE:
         return COURSE[str]
 
     if str in COURSE.values():
         return [i for i, v in COURSE.items() if v == str][0]
 
-    #logger.error('keiba.go.jpの競馬場コード変換に失敗しました')
+    return -1
