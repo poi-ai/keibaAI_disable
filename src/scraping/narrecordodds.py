@@ -27,9 +27,10 @@ class Nar():
         self.__baba_url = []
         self.__race_info = []
         self.__next_get_time = 0
-        self.__write_data = pd.DataFrame(columns = ['レースID','馬番', '単勝オッズ', '複勝下限オッズ', '複勝上限オッズ', '記録時刻', '発走残り', 'JRAフラグ'])
+        self.__write_data = pd.DataFrame(columns = ['レースID','馬番', '単勝オッズ', '複勝下限オッズ', '複勝上限オッズ', '記録時刻', '発走まで', 'JRAフラグ'])
         self.get_url()
         self.get_race_info(True)
+        logger.info(f'初期処理終了 開催場数：{len(self.baba_url)} 記録対象レース数：{len(self.race_info)}')
 
     @property
     def baba_url(self):
@@ -102,17 +103,13 @@ class Nar():
                     self.race_info.append(RaceInfo(race_url[-2:].replace('=', ''), race[0].replace('R', ''), race_time))
                 else:
                     # 保存済のレース情報の発走時刻と比較
-                    for race_info in self.race_info:
-                        if race_info.baba_code == race_url[-2:].replace('=', '') and race_info.race_no == race[0].replace('R', ''):
+                    for race in self.race_info:
+                        if race.baba_code == race_url[-2:].replace('=', '') and race.race_no == race[0].replace('R', ''):
                             # 発走時刻が変更となっていたら設定し直し
-                            if race_info.race_time != race_time:
-                                logger.info(f'レース時間変更 {babacodechange.keibago(race_info.baba_code)}{race_info.race_no}R {race_info.race_time}→{race_time}')
-                                race_info.race_time = race_time
+                            if race.race_time != race_time:
+                                logger.info(f'発走時間変更 {babacodechange.keibago(race.baba_code)}{race.race_no}R {race.race_time}→{race_time}')
+                                race.race_time = race_time
             time.sleep(2)
-
-        # 初期処理の場合のみログ出力
-        if init_flg:
-            logger.info(f'初期処理終了 開催場数：{len(self.baba_url)} 記録対象レース数：{len(self.race_info)}')
 
     def time_check(self):
         '''次のオッズ記録時間までの秒数を計算する'''
@@ -325,8 +322,8 @@ if __name__ == '__main__':
                 logger.error(traceback.format_exc())
                 exit()
 
-            # 発走までの時間チェック待機
             try:
+                # 発走までの時間チェック待機
                 if nar.time_check():
                     break
             except Exception as e:

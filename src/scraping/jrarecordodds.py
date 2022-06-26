@@ -36,7 +36,7 @@ class Jra():
         self.__info_param = []
         self.__race_info = []
         self.__next_get_time = 0
-        self.__write_data = pd.DataFrame(columns = ['レースID','馬番', '単勝オッズ', '複勝下限オッズ', '複勝上限オッズ', '記録時刻', 'JRAフラグ'])
+        self.__write_data = pd.DataFrame(columns = ['レースID','馬番', '単勝オッズ', '複勝下限オッズ', '複勝上限オッズ', '記録時刻', '発走まで', 'JRAフラグ'])
         self.get_param('odds')
         self.get_param('info')
         self.get_race_info(True)
@@ -105,20 +105,6 @@ class Jra():
 
         return param
 
-    def extract_info(self, param):
-        '''doActionの第二引数からレース情報を抽出する
-
-        Args:
-            param(str) : doActionの第二引数(POSTパラメータ)
-
-        Returns:
-            baba_code(str) : JRA独自の競馬場コード
-            race_num(str) : レース番号(xxRのxx)
-
-        '''
-        #return param[], param TODO
-        pass
-
     def get_param(self, page_type):
         '''稼働日の各競馬場のレースリストページのパラメータを取得する
 
@@ -143,7 +129,12 @@ class Jra():
         for i, kaisai_date in enumerate(kaisai_dates):
             # レース日と稼働日が一致する枠の番号を取得
             m = re.search(r'(\d+)月(\d+)日', str(kaisai_date))
-            if jst.month() == m.group(1) and jst.day() == m.group(2):
+            '''TODO 動作確認後に削除
+            ・レース開催日 if jst.month() == m.group(1) and jst.day() == m.group(2):
+            ・月～水曜日 if '直近レース開催の月' == m.group(1) and '直近レース開催の日' == m.group(2):
+            ・木～金曜日 動作確認不可(JRAの今週の開催ページに出走表へのリンクがないため)
+            '''
+            if '6' == m.group(1) and '26' == m.group(2):
                 # 合致した枠内のHTMLを取得
                 links = BeautifulSoup(str(soup.find_all('div', class_='link_list multi div3 center')[i]), 'lxml')
                 # パラメータを抽出しインスタンス変数に格納
@@ -163,36 +154,93 @@ class Jra():
             init_flg(bool) : 初期処理(インスタンス作成)か主処理(インスタンス更新)か
                              T:初期処理,F:主処理
         '''
-        race_time = []
+        today_race_time = []
 
         # 発走時刻の切り出し
         for param in self.info_param:
+            baba_race_time = []
             soup = self.do_action(param)
             info_table = pd_read.html(str(soup))[0]
-            time_table = [i.replace('時', '').replace('分', '') for i in info_table['発走時刻']]
-            race_time.append(time_table)
+            for i in info_table['発走時刻']:
+                m = re.search(r'(\d+)時(\d+)分', i)
+                baba_race_time.append(datetime.datetime(int(jst.year()), int(jst.month()), int(jst.day()), int(m.group(1)), int(m.group(2)), 0))
 
-        if init_flg:
-            # 初期処理の場合はレース情報も合わせて取得
-            for kaisai_num, list_param in enumerate(self.odds_param):
-                soup = self.do_action(list_param)
+            today_race_time.append(baba_race_time)
 
-                # 単勝・複勝オッズページのパラメータを取得
-                tanpuku = [self.extract_param(str(i))[0] for i in soup.find_all('div', class_='tanpuku')]
+        # レース情報の取得
+        for kaisai_num, list_param in enumerate(self.odds_param):
+            soup = self.do_action(list_param)
 
-                ######## MEMO #######
-                # find_allの第二引数を↓に書き換えれば、別の馬券のパラメータも取得できる
-                # wakuren,umaren,wide,umatan,trio,tierce
-                #####################
+            # 単勝・複勝オッズページのパラメータを取得
+            tanpuku = [self.extract_param(str(i))[0] for i in soup.find_all('div', class_='tanpuku')]
 
-                # レース情報をRaceInfo型で保存する
-                for race_num, param in enumerate(tanpuku):
-                    self.race_info.append(RaceInfo(param, param[9:11], param[19:21], race_time[kaisai_num][race_num]))
+            ######## MEMO #######
+            # find_allの第二引数を↓に書き換えれば、別の馬券のパラメータも取得できる
+            # wakuren,umaren,wide,umatan,trio,tierce
+            #####################
 
-                time.sleep(2)
+            for race_num, param in enumerate(tanpuku):
+                if init_flg:
+                    # TODO
+                    # 初期処理の場合はレース情報をRaceInfo型で保存する
+                    self.race_info.append(RaceInfo(param, param[9:11], param[19:21], today_race_time[kaisai_num][race_num]))
+                else:
+                    # 主処理の場合は発走時間が更新されているかのチェック
+                    for race in self.race_info:
+                        if race.baba_code == param[9:11] and race.race_no == param[19:21]:
+                            if race.race_time != today_race_time[kaisai_num][race_num]:
+                                logger.info(f'発走時間変更 {babacodechange.jra(race.baba_code)}{race.race_no}R {race.race_time}→{today_race_time[kaisai_num][race_num]}')
+                                race.race_time = today_race_time[kaisai_num][race_num]
+
+            time.sleep(2)
+
+    def time_check(self):
+        '''次のオッズ記録時間までの秒数を計算する'''
+        logger.info('オッズ記録時間チェック処理開始')
+        # 現在時刻取得
+        NOW = jst.now()
+        # 次のx時x分00秒
+        NEXT_MINITURES = NOW + datetime.timedelta(seconds = 60 - int(jst.second()))
+
+        # 次の取得時間をリセット
+        self.next_get_time = NOW + datetime.timedelta(days = 1)
+
+        # 各レース毎に次のx分00秒が記録対象かチェック
+        for race in self.race_info:
+            # 最終出力待ちか記録済以外の場合
+            if race.record_flg != '4' and race.record_flg != '-1':
+                # 次のx分00秒からレース発走までの時間
+                time_left = int((race.race_time - NEXT_MINITURES).total_seconds())
+
+                # 発走12分よりも前の場合
+                if time_left > 720:
+                    self.next_get_time = jst.time_min(self.next_get_time, race.race_time - datetime.timedelta(seconds = 720))
+                # 発走12分前から1分以内の場合
+                elif time_left >= 59:
+                    race.record_flg = '1'
+                    self.next_get_time = NEXT_MINITURES
+                # 発走1分前から発走後20分以内の場合
+                elif time_left > -1200:
+                    self.next_get_time = jst.time_min(self.next_get_time, race.race_time + datetime.timedelta(seconds = 1200))
+                # 発走後20分以降の場合
+                else:
+                    race.record_flg = '2'
+                    self.next_get_time = NEXT_MINITURES
+
+        # 次の記録時間までの時間(秒)
+        time_left = int((self.next_get_time - jst.now()).total_seconds())
+
+        logger.info(f'次の記録時間まで{time_left}秒')
+
+        # 11分以上なら10分後に発走時刻再チェック
+        if time_left > 660:
+            time.sleep(600)
+            return False
+        elif time_left > 1:
+            time.sleep(time_left + 1)
+            return True
         else:
-            # TODO 主処理の場合は発走時間が更新されているかのチェック
-            pass
+            return True
 
     def end_check(self):
         '''全レース記録済みかのチェックを行う'''
@@ -201,6 +249,76 @@ class Jra():
                 return True
         return False
 
+    def get_select(self):
+        '''オッズ取得順の決定'''
+
+        # 取得回数記録
+        get_count = 0
+
+        # 暫定オッズを先に取得
+        for race in self.race_info:
+            if race.record_flg == '1':
+                self.get_odds(race)
+                race.record_flg = '3'
+                get_count += 1
+
+            # アクセス過多防止のため、5レース取得ごとに1秒待機(バグリカバリ)
+            if get_count % 5 == 0 and get_count != 0:
+                time.sleep(1)
+
+        time.sleep(2)
+
+        # 暫定オッズ取得後に最終オッズを取得
+        for race in self.race_info:
+            if race.record_flg == '2':
+                self.get_odds(race)
+                race.record_flg = '4'
+                time.sleep(3)
+
+            # x分40秒を超えたら取得を後回しに
+            if int(jst.second()) > 40:
+                break
+
+    def get_odds(self, race):
+        '''(単勝・複勝)オッズの取得・記録を行う'''
+        # オッズのテーブルを取得
+        soup = self.do_action(race.race_param)
+        odds_table = pd_read.html(str(soup))[0]
+
+        logger.info(f'{babacodechange.jra(race.baba_code)}{race.race_no}Rの{str(round((race.race_time - jst.now()).total_seconds() / 60)) + "分前" if race.record_flg == "1" else "最終"}オッズ取得')
+        # 馬番・単勝オッズのカラムのみ抽出
+        odds_data = odds_table.loc[:, ['馬番', '単勝']]
+        # 複勝オッズのカラムを下限と上限に別々のカラムに分割(レースによってカラム名が変わるため位置で指定)
+        fukusho = odds_table[odds_table.columns[4]].str.split('-', expand = True)
+        # 最左列にレースIDのカラム追加
+        odds_data.insert(0, 'race_id', race.race_param)
+        # 最右列に現在時刻(yyyyMMddHHMMSS)・発走までの残り時間(秒)・JRAフラグの追加
+        odds_data = pd.concat([odds_data, fukusho, pd.DataFrame([[jst.time(), max(-1, int((race.race_time - jst.now()).total_seconds())), '0'] for _ in range(len(odds_data))], index = odds_data.index)], axis = 1)
+        # 結合用にカラム名振り直し
+        odds_data.set_axis(self.write_data.columns, axis = 1, inplace = True)
+        # 一時保存用変数に格納
+        self.write_data = pd.concat([odds_data, self.write_data])
+
+    def record_odds(self):
+        '''取得したオッズをCSV/Google Spread Sheetに出力する'''
+        # CSVに出力する
+        writecsv.write_csv(self.write_data)
+        # TODO Google Spread Sheetに出力
+        # writesheet.write_spread_sheet(self.write_data, jst.month().zfill(2))
+
+        # 記録用データを空にする
+        self.write_data = self.write_data[:0]
+
+        # 出力待ちのフラグを変更する
+        for race in self.race_info:
+            # 暫定オッズフラグの変更
+            if race.record_flg == '3':
+                race.record_flg = '0'
+            # 最終オッズフラグの変更
+            if race.record_flg == '4':
+                race.record_flg = '-1'
+
+        logger.info('オッズデータをCSVへ出力')
 
 class RaceInfo():
     '''各レースの情報を保持を行う
@@ -262,7 +380,6 @@ class RaceInfo():
     def jra_flg(self, jra_flg):
         self.__jra_flg = jra_flg
 
-
 # 動作確認用
 if __name__ == '__main__':
 
@@ -289,4 +406,32 @@ if __name__ == '__main__':
                 logger.error(e)
                 logger.error(traceback.format_exc())
                 exit()
+
+            try:
+                # 発走までの時間チェック待機
+                if jra.time_check():
+                    break
+            except Exception as e:
+                logger.error('発走時刻までの待機処理でエラー')
+                logger.error(e)
+                logger.error(traceback.format_exc())
+                exit()
+
+        try:
+            # オッズ取得処理
+            jra.get_select()
+        except Exception as e:
+            logger.error('オッズ取得処理でエラー')
+            logger.error(e)
+            logger.error(traceback.format_exc())
             exit()
+
+        # 記録データが格納されていてx分40秒を過ぎていなければCSV出力
+        if int(jst.second()) <= 40 and len(jra.write_data) != 0:
+            try:
+                jra.record_odds()
+            except Exception as e:
+                logger.error('オッズ出力処理でエラー')
+                logger.error(e)
+                logger.error(traceback.format_exc())
+                exit()
