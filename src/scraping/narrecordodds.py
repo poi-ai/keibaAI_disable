@@ -107,7 +107,7 @@ class Nar():
                         if race.baba_code == race_url[-2:].replace('=', '') and race.race_no == race[0].replace('R', ''):
                             # 発走時刻が変更となっていたら設定し直し
                             if race.race_time != race_time:
-                                logger.info(f'発走時間変更 {babacodechange.keibago(race.baba_code)}{race.race_no}R {race.race_time}→{race_time}')
+                                logger.info(f'発走時間変更 {babacodechange.keibago(race.baba_code)}{race.race_no}R {jst.clock(race.race_time)}→{jst.clock(race_time)}')
                                 race.race_time = race_time
             time.sleep(2)
 

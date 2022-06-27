@@ -78,7 +78,7 @@ class Jra():
     def write_data(self, write_data):
         self.__write_data = write_data
 
-    def do_action(self, cname):
+    def do_action(self, cname, sleep_time = 0, retry_count = 3):
         '''POSTリクエストを送り、HTML情報を受け取る
 
         Args:
@@ -87,10 +87,20 @@ class Jra():
         Returns:
             soup(bs4.BeautifulSoup):受け取ったHTML
         '''
-
-        r = requests.post(self.ODDS_URL, data = {'cname':cname})
-        r.encoding = r.apparent_encoding
-        return BeautifulSoup(r.text, 'lxml')
+        for _ in range(retry_count):
+            try:
+                r = requests.post(self.ODDS_URL, data = {'cname':cname})
+                r.encoding = r.apparent_encoding
+                soup = BeautifulSoup(r.text, 'lxml')
+            except Exception as e:
+                logger.error(e)
+                logger.error(traceback.format_exc())
+                if sleep_time != 0:
+                  time.sleep(sleep_time)
+            else:
+                return soup
+        else:
+            return -1
 
     def extract_param(self, html):
         '''HTMLからdoActionの第二引数を抽出する
@@ -116,8 +126,10 @@ class Jra():
         # 今週の開催一覧ページのHTMLを取得
         if page_type == 'odds':
             soup = self.do_action('pw15oli00/6D')
+            logger.info('開催情報取得')
         else:
             soup = self.do_action('pw01dli00/F3')
+            logger.info('レース発走情報取得')
 
         # 開催情報のリンクがある場所を切り出し
         kaisai_frame = soup.find('div', id = 'main')
@@ -160,16 +172,28 @@ class Jra():
         for param in self.info_param:
             baba_race_time = []
             soup = self.do_action(param)
+            if soup == -1:
+                logger.error(f'出馬表一覧の取得に失敗しました')
+                raise
+
             info_table = pd_read.html(str(soup))[0]
+
+            logger.info(f'{babacodechange.jra(param[9:11])}競馬場のレーステーブル取得')
+
             for i in info_table['発走時刻']:
                 m = re.search(r'(\d+)時(\d+)分', i)
                 baba_race_time.append(datetime.datetime(int(jst.year()), int(jst.month()), int(jst.day()), int(m.group(1)), int(m.group(2)), 0))
 
             today_race_time.append(baba_race_time)
 
+            time.sleep(2)
+
         # レース情報の取得
         for kaisai_num, list_param in enumerate(self.odds_param):
             soup = self.do_action(list_param)
+            if soup == -1:
+                logger.error(f'オッズ一覧の取得に失敗しました')
+                raise
 
             # 単勝・複勝オッズページのパラメータを取得
             tanpuku = [self.extract_param(str(i))[0] for i in soup.find_all('div', class_='tanpuku')]
@@ -188,10 +212,8 @@ class Jra():
                     for race in self.race_info:
                         if race.baba_code == param[9:11] and race.race_no == param[19:21]:
                             if race.race_time != today_race_time[kaisai_num][race_num]:
-                                logger.info(f'発走時間変更 {babacodechange.jra(race.baba_code)}{race.race_no}R {race.race_time}→{today_race_time[kaisai_num][race_num]}')
+                                logger.info(f'発走時間変更 {babacodechange.jra(race.baba_code)}{race.race_no}R {jst.clock(race.race_time)}→{jst.clock(today_race_time[kaisai_num][race_num])}')
                                 race.race_time = today_race_time[kaisai_num][race_num]
-
-            time.sleep(2)
 
     def time_check(self):
         '''次のオッズ記録時間までの秒数を計算する'''
@@ -292,6 +314,9 @@ class Jra():
         '''(単勝・複勝)オッズの取得・記録を行う'''
         # オッズのテーブルを取得
         soup = self.do_action(race.race_param)
+        if soup == -1:
+            logger.error(f'オッズの取得に失敗しました')
+            raise
         odds_table = pd_read.html(str(soup))[0]
 
         logger.info(f'{babacodechange.jra(race.baba_code)}{race.race_no}Rの{str(round((race.race_time - jst.now()).total_seconds() / 60)) + "分前" if race.record_flg == "1" else "最終"}オッズ取得')
