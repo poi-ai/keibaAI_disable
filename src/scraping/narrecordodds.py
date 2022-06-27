@@ -103,12 +103,12 @@ class Nar():
                     self.race_info.append(RaceInfo(race_url[-2:].replace('=', ''), race[0].replace('R', ''), race_time))
                 else:
                     # 保存済のレース情報の発走時刻と比較
-                    for race in self.race_info:
-                        if race.baba_code == race_url[-2:].replace('=', '') and race.race_no == race[0].replace('R', ''):
+                    for save_race in self.race_info:
+                        if save_race.baba_code == race_url[-2:].replace('=', '') and save_race.race_no == race[0].replace('R', ''):
                             # 発走時刻が変更となっていたら設定し直し
-                            if race.race_time != race_time:
-                                logger.info(f'発走時間変更 {babacodechange.keibago(race.baba_code)}{race.race_no}R {jst.clock(race.race_time)}→{jst.clock(race_time)}')
-                                race.race_time = race_time
+                            if save_race.race_time != race_time:
+                                logger.info(f'発走時間変更 {babacodechange.keibago(save_race.baba_code)}{save_race.race_no}R {jst.clock(save_race.race_time)}→{jst.clock(race_time)}')
+                                save_race.race_time = race_time
             time.sleep(2)
 
     def time_check(self):
@@ -177,7 +177,7 @@ class Nar():
         # 馬番・単勝オッズ・複勝オッズの列のみ抽出
         odds_data = odds_table.loc[:, ['馬番', '単勝オッズ', odds_table.columns[4], odds_table.columns[5]]].replace('-', '', regex = True)
         # 最左列にレースIDのカラム追加
-        odds_data.insert(0, 'race_id', jst.year() + jst.month().zfill(2) + jst.day().zfill(2) + race.baba_code.zfill(2) + race.race_no.zfill(2))
+        odds_data.insert(0, 'race_id', jst.date() + race.baba_code.zfill(2) + race.race_no.zfill(2))
         # 最右列に現在時刻(yyyyMMddHHMMSS)・発走までの残り時間(秒)・JRAフラグの追加
         odds_data = pd.concat([odds_data, pd.DataFrame([[jst.time(), max(-1, int((race.race_time - jst.now()).total_seconds())), '0'] for _ in range(len(odds_data))], index = odds_data.index)], axis = 1)
         # 結合用にカラム名振り直し

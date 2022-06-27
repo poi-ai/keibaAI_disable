@@ -325,7 +325,7 @@ class Jra():
         # 複勝オッズのカラムを下限と上限に別々のカラムに分割(レースによってカラム名が変わるため位置で指定)
         fukusho = odds_table[odds_table.columns[4]].str.split('-', expand = True)
         # 最左列にレースIDのカラム追加
-        odds_data.insert(0, 'race_id', race.race_param)
+        odds_data.insert(0, 'race_id', jst.date() + race.baba_code.zfill(2) + race.race_no.zfill(2))
         # 最右列に現在時刻(yyyyMMddHHMMSS)・発走までの残り時間(秒)・JRAフラグの追加
         odds_data = pd.concat([odds_data, fukusho, pd.DataFrame([[jst.time(), max(-1, int((race.race_time - jst.now()).total_seconds())), '0'] for _ in range(len(odds_data))], index = odds_data.index)], axis = 1)
         # 結合用にカラム名振り直し
