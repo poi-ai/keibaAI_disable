@@ -41,3 +41,12 @@ def second():
 def time_min(time1, time2):
     '''datetime型の値を比較し、古い(小さい)方をdatetime型で返す'''
     return datetime.datetime.strptime(min(time1.strftime("%Y%m%d%H%M%S"), time2.strftime("%Y%m%d%H%M%S")), "%Y%m%d%H%M%S")
+
+def yesterday(date = date()):
+    '''指定した一日前の日付をstr型(yyyyMMDD)で返す'''
+    dt_date = datetime.strptime(date, '%Y%m%d')
+    return datetime.strftime(dt_date - datetime.timedelta(1), '%Y%m%d')
+
+def clock(date = now()):
+    '''指定した時間をHH:MMフォーマットで返す'''
+    return datetime.strftime(date, '%H:%M')

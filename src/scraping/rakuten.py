@@ -9,13 +9,6 @@ from bs4 import BeautifulSoup
 from common import logger, jst, soup, writecsv
 from datetime import datetime, timedelta
 
-# common行き
-def yesterday(date):
-    dt_date = datetime.strptime(date, '%Y%m%d')
-    return datetime.strftime(dt_date - timedelta(1), '%Y%m%d')
-
-
-
 class ResultOdds():
     '''楽天競馬のサイトから地方競馬の確定オッズを取得する
 
@@ -29,7 +22,7 @@ class ResultOdds():
 
     '''
 
-    def __init__(self, start_date = yesterday(jst.date()), end_date = '20100601'):
+    def __init__(self, start_date = jst.yesterday(), end_date = '20100601'):
         self.main(start_date, end_date)
 
     def main(self, start_date, end_date):
