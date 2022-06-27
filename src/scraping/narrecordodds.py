@@ -148,6 +148,9 @@ class Nar():
         # 次の記録時間までの時間(秒)
         time_left = int((self.next_get_time - jst.now()).total_seconds())
 
+        # 出力待ちのみの場合はノータイムで出力するように
+        if self.wait_check(): time_left = 0
+
         logger.info(f'次の記録時間まで{time_left}秒')
 
         # 11分以上なら10分後に発走時刻再チェック
@@ -209,6 +212,13 @@ class Nar():
             if race.record_flg != '-1':
                 return True
         return False
+
+    def wait_check(self):
+        '''全レース出力待ちかのチェックを行う'''
+        for race in self.race_info:
+            if race.record_flg != '4':
+                return False
+        return True
 
     def get_select(self):
         '''オッズ取得順の決定'''
