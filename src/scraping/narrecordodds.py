@@ -3,7 +3,7 @@ import package
 import time
 import traceback
 import datetime
-from common import babacodechange, jst, logger, writecsv, pd_read
+from common import babacodechange, jst, logger as lg, writecsv, pd_read
 
 class Nar():
     '''地方競馬オッズ取得クラス
@@ -308,7 +308,7 @@ class RaceInfo():
 if __name__ == '__main__':
 
     # ログ用インスタンス作成
-    logger = logger.Logger()
+    logger = lg.Logger()
 
     # 地方競馬用インスタンス作成
     try:
