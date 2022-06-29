@@ -21,6 +21,11 @@ class Logger():
         self.set()
 
     def set(self):
+        # 既にloggerが設定されている場合はリセット(重複出力防止)
+        for h in self.logger.handlers[:]:
+            self.logger.removeHandler(h)
+            h.close()
+
         # フォーマットの設定
         formatter = logging.Formatter('%(asctime)s - [%(levelname)s] %(message)s')
 

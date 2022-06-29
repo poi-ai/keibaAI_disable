@@ -2,12 +2,12 @@ import jrarecordodds
 import narrecordodds
 import package
 import traceback
-from common import logger as lg, jst
+from common import logger as logger, jst
+
+# ログ用インスタンス作成
+logger = logger.Logger()
 
 if __name__ == '__main__':
-
-    # ログ用インスタンス作成
-    logger = lg.Logger()
 
     # 中央競馬用インスタンス作成
     try:
