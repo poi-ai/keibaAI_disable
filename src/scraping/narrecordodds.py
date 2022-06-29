@@ -114,8 +114,16 @@ class Nar():
                                 save_race.race_time = race_time
             time.sleep(2)
 
-    def time_check(self):
-        '''次のオッズ記録時間までの秒数を計算する'''
+    def time_check(self, called = False):
+        '''次のオッズ記録時間までの秒数を計算する
+
+        Args:
+            called(bool):別処理が同時に走っているか
+
+        Returns:
+            time_left(int):次の取得までの秒数(called = True時)
+            flg(bool):待機時間後に次のオッズ取得時間か(called = Flase時)
+        '''
         logger.info('オッズ記録時間チェック処理開始')
         # 現在時刻取得
         NOW = jst.now()
@@ -154,17 +162,21 @@ class Nar():
         # 出力待ちのみの場合はノータイムで出力するように
         if self.wait_check(): time_left = 0
 
-        logger.info(f'次の記録時間まで{time_left}秒')
-
-        # 11分以上なら10分後に発走時刻再チェック
-        if time_left > 660:
-            time.sleep(600)
-            return False
-        elif time_left > 1:
-            time.sleep(time_left + 1)
-            return True
+        # 別処理と同時起動の場合は待機せずに時間を返す
+        if called:
+            return time_left
         else:
-            return True
+            logger.info(f'次の記録時間まで{time_left}秒')
+
+            # 11分以上なら10分後に発走時刻再チェック
+            if time_left > 660:
+                time.sleep(600)
+                return False
+            elif time_left > 1:
+                time.sleep(time_left + 1)
+                return True
+            else:
+                return True
 
     def get_odds(self, race):
         '''(単勝・複勝)オッズの取得・記録を行う'''
@@ -322,8 +334,16 @@ if __name__ == '__main__':
         logger.error(traceback.format_exc())
         exit()
 
-    # 全レース記録済かチェック
-    while nar.end_check():
+    while True:
+        try:
+            # 全レース記録済かチェック
+            if not nar.end_check():
+                break
+        except Exception as e:
+            logger.error('発走時刻更新処理でエラー')
+            logger.error(e)
+            logger.error(traceback.format_exc())
+            exit()
 
         while True:
             try:
@@ -363,3 +383,5 @@ if __name__ == '__main__':
                 logger.error(e)
                 logger.error(traceback.format_exc())
                 exit()
+
+    logger.info('地方競馬オッズ記録システム終了')
