@@ -5,6 +5,9 @@ import traceback
 import datetime
 from common import babacodechange, jst, logger as lg, writecsv, pd_read
 
+# ログ用インスタンス作成
+logger = lg.Logger()
+
 class Nar():
     '''地方競馬オッズ取得クラス
 

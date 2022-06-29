@@ -9,6 +9,9 @@ import requests
 from bs4 import BeautifulSoup
 from common import babacodechange, jst, logger as lg, writecsv, pd_read
 
+# ログ用インスタンス作成
+logger = lg.Logger()
+
 class Jra():
     '''中央競馬オッズ取得クラス
 
