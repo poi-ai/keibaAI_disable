@@ -1,5 +1,4 @@
 import datetime
-import itertools
 import pandas as pd
 import package
 import time
@@ -149,7 +148,7 @@ class Jra():
             ・月～水曜日 if '直近レース開催の月' == m.group(1) and '直近レース開催の日' == m.group(2):
             ・木～金曜日 動作確認不可(JRAの今週の開催ページに出走表へのリンクがないため)
             '''
-            if '6' == m.group(1) and '26' == m.group(2):
+            if jst.month() == m.group(1) and jst.day() == m.group(2):
                 # 合致した枠内のHTMLを取得
                 links = BeautifulSoup(str(soup.find_all('div', class_='link_list multi div3 center')[i]), 'lxml')
                 # パラメータを抽出しインスタンス変数に格納
@@ -219,8 +218,15 @@ class Jra():
                                 logger.info(f'発走時間変更 {babacodechange.jra(race.baba_code)}{race.race_no}R {jst.clock(race.race_time)}→{jst.clock(today_race_time[kaisai_num][race_num])}')
                                 race.race_time = today_race_time[kaisai_num][race_num]
 
-    def time_check(self):
-        '''次のオッズ記録時間までの秒数を計算する'''
+    def time_check(self, called = False):
+        '''次のオッズ記録時間までの秒数を計算する
+        Args:
+            called(bool):別処理が同時に走っているか
+
+        Returns:
+            time_left(int):次の取得までの秒数(called = True時)
+            flg(bool):待機時間後に次のオッズ取得時間か(called = Flase時)
+        '''
         logger.info('オッズ記録時間チェック処理開始')
         # 現在時刻取得
         NOW = jst.now()
@@ -258,17 +264,21 @@ class Jra():
         # 出力待ちのみの場合はノータイムで出力するように
         if self.wait_check(): time_left = 0
 
-        logger.info(f'次の記録時間まで{time_left}秒')
-
-        # 11分以上なら10分後に発走時刻再チェック
-        if time_left > 660:
-            time.sleep(600)
-            return False
-        elif time_left > 1:
-            time.sleep(time_left + 1)
-            return True
+        # 別処理と同時起動の場合は待機せず時間を返す
+        if called:
+            return time_left
         else:
-            return True
+            logger.info(f'次の記録時間まで{time_left}秒')
+
+            # 11分以上なら10分後に発走時刻再チェック
+            if time_left > 660:
+                time.sleep(600)
+                return False
+            elif time_left > 1:
+                time.sleep(time_left + 1)
+                return True
+            else:
+                return True
 
     def end_check(self):
         '''全レース記録済みかのチェックを行う'''
@@ -433,8 +443,17 @@ if __name__ == '__main__':
         logger.error(traceback.format_exc())
         exit()
 
-    # 全レース記録済かチェック
-    while jra.end_check():
+    while True:
+        try:
+            # 全レース記録済かチェック
+            if not jra.end_check():
+                break
+        except Exception as e:
+            logger.error('発走時刻更新処理でエラー')
+            logger.error(e)
+            logger.error(traceback.format_exc())
+            exit()
+
         while True:
             try:
                 # 発走時刻更新
@@ -473,3 +492,5 @@ if __name__ == '__main__':
                 logger.error(e)
                 logger.error(traceback.format_exc())
                 exit()
+
+    logger.info('中央競馬オッズ記録システム終了')
