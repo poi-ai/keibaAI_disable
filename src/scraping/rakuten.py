@@ -4,6 +4,7 @@ import pandas as pd
 import package
 import re
 import requests
+import sys
 import traceback
 from bs4 import BeautifulSoup
 from common import logger, jst, soup, writecsv
@@ -15,71 +16,101 @@ class ResultOdds():
     Instance Parameter:
         latest_date(str) : 取得対象の最も新しい日付(yyyyMMdd)
                           デフォルト : システム稼働日前日
-        oldest_date(str) : 取得対象の最も古い日付
+        oldest_date(str) : 取得対象の最も古い日付(yyyyMMdd)
                           デフォルト : 20100601(閲覧可能な最古の日付)
-
-        baba_url(list<str>) : 取得対象日の各競馬場のレース情報が記載されたURL
-
+        date(str) : 取得対象の日付(yyyyMMdd)
     '''
 
-    def __init__(self, oldest_date = '20100601' latest_date = jst.yesterday()):
+    def __init__(self, oldest_date = '20100601', latest_date = jst.yesterday()):
+        logger.info('----------------------------')
+        logger.info('地方競馬過去レースオッズシステム起動')
+        self.__latest_date = latest_date
+        self.__oldest_date = oldest_date
         self.validation_check()
-        self.main(latest_date, oldest_date)
+        self.__date = self.latest_date
+        self.__url = URL()
+        self.main()
+        logger.info('地方競馬過去レースオッズシステム終了')
 
-    def validation_check(latest_date, oldest_date):
+    @property
+    def latest_date(self): return self.__latest_date
+    @property
+    def oldest_date(self): return self.__oldest_date
+    @property
+    def date(self): return self.__date
+    @property
+    def url(self): return self.__url
+    @latest_date.setter
+    def latest_date(self, latest_date): self.__latest_date = latest_date
+    @oldest_date.setter
+    def oldest_date(self, oldest_date): self.__oldest_date = oldest_date
+    @date.setter
+    def date(self, date): self.__date = date
+
+    def validation_check(self):
         '''日付の妥当性チェックを行う'''
         logger.info('日付のバリデーションチェック開始')
 
         # 日付フォーマットチェック
         try:
-            temp = datetime.strptime(latest_date, %Y%m%d)
-        except:
-            logger.warning('取得対象最新日の値が不正です')
-            logger.warning(f'取得対象最新日:{datetime.strptime(jst.yesterday(), %Y/%m/%d)} として処理を行います')
-            latest_date = jst.yesterday()
-
-        try:
-            temp = datetime.strptime(oldest_date, %Y%m%d)
+            tmp = datetime.strptime(self.oldest_date, '%Y%m%d')
         except:
             logger.warning('取得対象最古日の値が不正です')
-            logger.warning(f'取得対象最古日:2010/06/01 として処理を行います')
-            oldest_date = '20100601'
+            logger.warning(f'取得対象最古日:{self.oldest_date}→2010/06/01 に変更します')
+            self.oldest_date = '20100601'
+
+        try:
+            tmp = datetime.strptime(self.latest_date, '%Y%m%d')
+        except:
+            logger.warning('取得対象最新日の値が不正です')
+            logger.warning(f'取得対象最新日:{self.latest_date}→{jst.change_format(jst.yesterday(), "%Y%m%d", "%Y/%m/%d")}に変更します')
+            self.latest_date = jst.yesterday()
 
         # 日付妥当性チェック
-        if latest_date == jst.date():
-            logger.warning('エラーを起こす可能性が高いため本日のレースは取得できません')
-            logger.warning(f'取得対象最新日:{datetime.strptime(jst.yesterday(), %Y/%m/%d)} として処理を行います')
-            latest_date = jst.yesterday()
-        else latest_date < jst.date():
-            logger.warning('取得対象最新日の値が未来になっています')
-            logger.warning(f'取得対象最新日:{datetime.strptime(jst.yesterday(), %Y/%m/%d)} として処理を行います')
-            latest_date = jst.yesterday()
-
-        if oldest_date > jst.date():
+        if self.oldest_date < '20100601':
             logger.warning('取得対象最古日の値が2010/06/01より前になっています')
-            logger.warning('2010/6/1以前のオッズデータは楽天競馬サイト内に存在しないため取得できません')
-            logger.warning(f'取得対象最古日:2010/06/01 として処理を行います')
-            latest_date = jst.yesterday()
+            logger.warning('2010/06/01以前のオッズデータは楽天競馬サイト内に存在しないため取得できません')
+            logger.warning(f'取得対象最古日:{self.oldest_date}→2010/06/01に変更します')
+            self.oldest_date = jst.yesterday()
+        elif self.oldest_date == jst.date():
+            logger.warning('エラーを起こす可能性が高いため本日のレースは取得できません')
+            logger.warning(f'取得対象最古日:{self.oldest_date}→{jst.change_format(jst.yesterday(), "%Y%m%d", "%Y/%m/%d")}に変更します')
+            self.oldest_date = jst.yesterday()
+        elif self.oldest_date > jst.date():
+            logger.warning('取得対象最古日の値が未来になっています')
+            logger.warning(f'取得対象最古日:{self.oldest_date}→{jst.change_format(jst.yesterday(), "%Y%m%d", "%Y/%m/%d")}に変更します')
+            self.oldest_date = jst.yesterday()
 
-        if latest_date < oldest_date:
-            logger.warning('取得対象最古日と最新日の記載順かま逆です')
-            logger.warning(f'取得対象最新日:{datetime.strptime(oldest_date, %Y/%m/%d)}')
-            logger.warning(f'取得対象最古日:{datetime.strptime(latest_date, %Y/%m/%d)} として処理を行います')
-            tmp = latest_date
-            latest_date = oldest_date
-            oldest_date = tmp
+        if self.latest_date == jst.date():
+            logger.warning('エラーを起こす可能性が高いため本日のレースは取得できません')
+            logger.warning(f'取得対象最新日:{self.latest_date}→{jst.change_format(jst.yesterday(), "%Y%m%d", "%Y/%m/%d")}に変更します')
+            self.latest_date = jst.yesterday()
+        elif self.latest_date > jst.date():
+            logger.warning('取得対象最新日の値が未来になっています')
+            logger.warning(f'取得対象最新日:{self.latest_date}→{jst.change_format(jst.yesterday(), "%Y%m%d", "%Y/%m/%d")}に変更します')
+            self.latest_date = jst.yesterday()
+
+        if self.latest_date < self.oldest_date:
+            logger.warning('取得対象最古日と最新日の記載順が逆のため入れ替えて処理を行います')
+            tmp = self.latest_date
+            self.latest_date = self.oldest_date
+            self.oldest_date = tmp
 
         logger.info('日付のバリデーションチェック終了')
+        logger.info(f'取得対象最古日:{jst.change_format(self.oldest_date, "%Y%m%d", "%Y/%m/%d")}')
+        logger.info(f'取得対象最新日:{jst.change_format(self.latest_date, "%Y%m%d", "%Y/%m/%d")} で処理を行います')
 
-    def main(self, latest_date, oldest_date):
+    def main(self):
         '''主処理、各メソッドの呼び出し'''
 
-        date = latest_date
-
-        while self.date_check(date):
+        # 1日ずつ遡って取得処理を行う
+        while True:
+            # 日付チェック
+            if not self.date_check():
+                break
 
             # 競馬場URLの取得
-            for baba_url in self.get_kaisai(date):
+            for baba_url in self.get_kaisai():
                 # レースURLの取得
                 race_url = self.get_race_url(baba_url)
                 # オッズテーブルの取得
@@ -87,23 +118,25 @@ class ResultOdds():
                 # テーブルデータの加工/CSV出力
                 self.record_odds(race_url, odds_table)
 
-            date = jst.yesterday(date)
+            # 1日前へ
+            self.date = jst.yesterday(self.date)
 
-    def date_check(date):
+    def date_check(self):
         '''対象日付内かのチェックを行う'''
-        if self.oldest_date <= date <= self.latest_date:
+        if self.oldest_date <= self.date <= self.latest_date:
             return True
         return False
 
-    def get_kaisai(self, target_date):
+    def get_kaisai(self):
         '''指定した日に開催される競馬場のURLを取得する'''
-        result = soup.get_soup(f'{RACE_CARD}{URL_LIST}{URL_ID}{target_date}{baba_code}{URL_RESERVE}{race_number}')
+        result = soup.get_soup(f'{self.url.RACE_CARD}{self.date}0000000000')
         race_track = result.find_all('ul', class_ = 'raceTrack')
 
         if len(race_track) == 0:
             return []
 
-        return [link.get('href') for link in race_track[0].find_all('a')]:
+        # 競馬場一覧からボタンになっている(=開催のある)もののみ切り出し
+        return [link.get('href') for link in race_track[0].find_all('a')]
 
     def get_race_url(self, baba_url):
         '''指定した競馬場(日付)に開催されるレースのURLを取得する'''
@@ -115,8 +148,8 @@ class ResultOdds():
 
     def get_odds(self, race_url):
         '''レースURLから単勝・複勝オッズのテーブルデータを取得する'''
-
-        return race_url, pd.read_html(f'{ODDS}{TANFUKU}{URL_ID}{race_url[-18:]}'))
+        print(race_url)
+        return pd.read_html(f'{self.url.TANFUKU}{race_url[-18:]}')
 
     def record_odds(self, race_url, odds_table):
         '''レース/オッズ情報を加工する'''
@@ -139,32 +172,51 @@ class ResultOdds():
         # CSVに出力する
         writecsv.write_csv(write_df)
 
-    def extract_info(self, url):
+    def extract_info(self, race_url):
         '''レース関連URLの下18桁を分割して返す'''
-        m = re.search(r'(\d{8})(\d{2})(\d{6})(\d{2})', url)
+        m = re.search(r'(\d{8})(\d{2})(\d{6})(\d{2})', race_url)
         # 順に開催年月日,競馬場コード,予備コード(未使用),レース番号
         return [m.group(i) for i in range(1, 5)]
 
-    def extract_param(self, url):
+    def extract_param(self, race_url):
         '''レース関連URLの下18桁を返す'''
-        m = re.search(r'(\d{18}')
-        return str(m.group(i))
+        m = re.search(r'(\d{18}', race_url)
+        return str(m.group(1))
+
+class URL():
+    '''楽天競馬の各ページのURL'''
+    # トップページ
+    TOP = 'https://keiba.rakuten.co.jp/'
+    # 投票ページ(要ログイン)
+    BET = 'https://bet.keiba.rakuten.co.jp/bet/normal'
+    # レース一覧/出走表
+    RACE_CARD = 'https://keiba.rakuten.co.jp/race_card/list/RACEID/'
+    # オッズ(単勝/複勝)
+    TANFUKU = 'https://keiba.rakuten.co.jp/odds/tanfuku/RACEID/'
+    # オッズ(枠複)
+    WAKUFUKU = 'https://keiba.rakuten.co.jp/odds/wakufuku/RACEID/'
+    # オッズ(枠単)
+    WAKUTAN = 'https://keiba.rakuten.co.jp/odds/wakutan/RACEID/'
+    # オッズ(馬複)
+    UMAFUKU = 'https://keiba.rakuten.co.jp/odds/umafuku/RACEID/'
+    # オッズ(馬単)
+    UMATAN = 'https://keiba.rakuten.co.jp/odds/umatan/RACEID/'
+    # オッズ(ワイド)
+    WIDE = 'https://keiba.rakuten.co.jp/odds/wide/RACEID/'
+    # オッズ(三連複)
+    SANRENFUKU = 'https://keiba.rakuten.co.jp/odds/sanrenfuku/RACEID/'
+    # オッズ(三連単)
+    SANRENTAN = 'https://keiba.rakuten.co.jp/odds/sanrentan/RACEID/'
+    # レース結果
+    RESULT = 'https://keiba.rakuten.co.jp/race_performance/list/RACEID/'
 
 if __name__ == '__main__':
+    # ログ用インスタンス作成
     logger = logger.Logger()
 
-    # TODO 後でクラス化
-    RACE_CARD = 'https://keiba.rakuten.co.jp/race_card/'
-    ODDS = 'https://keiba.rakuten.co.jp/odds/'
-    URL_LIST = 'list/'
-    TANFUKU = 'tanfuku/'
-    URL_ID = 'RACEID/'
-    URL_RESERVE = '000000'
-    baba_code = '00'
-    race_number= '00'
-
+    # オッズ取得用クラス呼び出し
     try:
-        ro = ResultOdds()
+        ro = ResultOdds(sys.argv[1], sys.argv[2])
     except Exception as e:
         logger.error(e)
         logger.error(traceback.format_exc())

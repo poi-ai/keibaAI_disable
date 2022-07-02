@@ -44,9 +44,13 @@ def time_min(time1, time2):
 
 def yesterday(date = date()):
     '''指定した一日前の日付をstr型(yyyyMMDD)で返す'''
-    dt_date = datetime.strptime(date, '%Y%m%d')
-    return datetime.strftime(dt_date - datetime.timedelta(1), '%Y%m%d')
+    dt_date = datetime.datetime.strptime(date, '%Y%m%d')
+    return datetime.datetime.strftime(dt_date - datetime.timedelta(1), '%Y%m%d')
 
 def clock(date = now()):
     '''指定した時間をHH:MMフォーマットで返す'''
-    return datetime.strftime(date, '%H:%M')
+    return datetime.datetime.strftime(date, '%H:%M')
+
+def change_format(value, before_format, after_format):
+    '''時間を表すstr型のフォーマットを変更して返す'''
+    return datetime.datetime.strftime(datetime.datetime.strptime(value, before_format), after_format)
