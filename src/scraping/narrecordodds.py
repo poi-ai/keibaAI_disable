@@ -221,8 +221,8 @@ class Nar():
 
         logger.info('オッズデータをCSVへ出力')
 
-    def end_check(self):
-        '''全レース記録済みかのチェックを行う'''
+    def continue_check(self):
+        '''処理を続ける(=全レース記録済みでない)かのチェックを行う'''
         for race in self.race_info:
             if race.record_flg != '-1':
                 return True
@@ -235,8 +235,8 @@ class Nar():
                 return False
         return True
 
-    def get_select(self):
-        '''オッズ取得順の決定'''
+    def get_select_realtime(self):
+        '''暫定オッズ取得対象レースの抽出'''
 
         # 取得回数記録
         get_count = 0
@@ -252,9 +252,9 @@ class Nar():
             if get_count % 5 == 0 and get_count != 0:
                 time.sleep(1)
 
-        time.sleep(2)
+    def get_select_confirm(self):
+        '''最終オッズ取得対象レースの抽出'''
 
-        # 暫定オッズ取得後に最終オッズを取得
         for race in self.race_info:
             if race.record_flg == '2':
                 self.get_odds(race)
@@ -337,7 +337,7 @@ if __name__ == '__main__':
     while True:
         try:
             # 全レース記録済かチェック
-            if not nar.end_check():
+            if not nar.continue_check():
                 break
         except Exception as e:
             logger.error('発走時刻更新処理でエラー')
@@ -366,10 +366,21 @@ if __name__ == '__main__':
                 exit()
 
         try:
-            # オッズ取得処理
-            nar.get_select()
+            # 暫定オッズ取得処理
+            nar.get_select_realtime()
         except Exception as e:
-            logger.error('オッズ取得処理でエラー')
+            logger.error('暫定オッズ取得処理でエラー')
+            logger.error(e)
+            logger.error(traceback.format_exc())
+            exit()
+
+        time.sleep(2)
+
+        try:
+            # 確定オッズ取得処理
+            nar.get_select_confirm()
+        except Exception as e:
+            logger.error('確定オッズ取得処理でエラー')
             logger.error(e)
             logger.error(traceback.format_exc())
             exit()
