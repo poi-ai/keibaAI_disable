@@ -1,281 +1,265 @@
-import datetime
-import json
+import jrarecordodds
+import narrecordodds
+import package
 import time
-import pandas as pd
-import requests
-from common import babacodechange, jst, logger, soup, writesheet
-from requests_html import HTMLSession
+import traceback
+from common import logger, jst
 
-def main():
-    '''メイン処理'''
-
-    # 全レース記録終了までループ
-    while True:
-        # 記録開始前の時刻を取得
-        NOW = jst.now()
-
-        # オッズの記録処理
-        time_check()
-
-        #次の記録時間
-        sleep_time = get_recent_time(NOW) - 3
-
-        # TODO debug
-        logger.info(str(sleep_time))
-
-        # 全レース記録済みならば処理終了
-        if not 0 in record_flg:
-            logger.info('本日のオッズ記録は終了しました')
-            exit()
-
-        # 直近のレース時刻まで処理停止
-        time.sleep(sleep_time)
-
-def get_race_id(jra_flg):
-    '''稼働日のレースIDを取得
-
-    Args:
-        jra_flg(int):1[中央(JRA)],0[地方(NAR)]
-
-    Returns:
-        race_id_list(list):稼働日のレースID
-
+class RecordOdds():
+    '''中央・地方競馬オッズ取得
+    Instance Parameter:
+       jra_flg(bool) : 中央競馬処理稼働フラグ
+       nar_flg(bool) : 地方競馬処理稼働フラグ
     '''
+    def __init__(self):
+        self.__jra_flg = True
+        self.__nar_flg = True
+        logger.info('----------------------------')
+        logger.info('中央・地方競馬オッズ記録システム起動')
+        logger.info('初期処理開始')
+        self.__jra, self.__nar = self.create_instance()
+        logger.info('初期処理終了')
+        self.main()
+        logger.info('中央地方競馬オッズ記録システム終了')
 
-    # 稼働日のレースIDを格納
-    race_id_list = []
+    @property
+    def jra(self): return self.__jra
+    @property
+    def nar(self): return self.__nar
+    @property
+    def jra_flg(self): return self.__jra_flg
+    @property
+    def nar_flg(self): return self.__nar_flg
+    @jra.setter
+    def jra(self, jra): self.__jra = jra
+    @nar.setter
+    def nar(self, nar): self.__nar = nar
+    @jra_flg.setter
+    def jra_flg(self, jra_flg): self.__jra_flg = jra_flg
+    @nar_flg.setter
+    def nar_flg(self, nar_flg): self.__nar_flg = nar_flg
 
-    # 稼働日にレースが行われる競馬場のリストページを格納
-    soups = []
+    def main(self):
+        '''主処理'''
+        while True:
+            # 全レース記録済みかのチェック
+            self.continue_check()
 
-    # HTML取得
-    if jra_flg == 1:
-        # 中央の場合は1つのGETで全てのレースID(URL)を取得できる
-        soups.append(soup.get_soup('https://race.netkeiba.com/top/race_list_sub.html?kaisai_date=' + TODAY))
-    elif jra_flg == 0:
-        # 地方の場合は各競馬場ごとにGETリクエストする必要がある
-        # 稼働日の開催情報の取得
-        course_soup = soup.get_soup('https://nar.netkeiba.com/top/race_list_sub.html?kaisai_date=' + TODAY)
-        course_links = course_soup.find('ul', class_='RaceList_ProvinceSelect')
+            # 中央・地方ともに記録済みなら処理終了
+            if not (self.jra_flg or self.nar_flg):
+                logger.info('中央・地方競馬オッズ記録システム終了')
+                return
 
-        # 開催なしの場合
-        if course_links == []:
-            return []
+            while True:
+                # 発走時刻更新処理
+                self.get_race_info()
 
-        # 稼働日の各競馬場のレース一覧URLを取得
-        links = course_links.find_all('a')
-        for link in links:
-            soups.append(soup.get_soup('https://nar.netkeiba.com/top/race_list_sub.html' + link.get('href') + '&kaisai_date=' + TODAY))
+                # 時間チェック/待機処理
+                if self.time_check():
+                    break
 
-    # レースIDを取得
-    for soup in soups:
-        # 各レースへのリンクを取得
-        links = soup.find_all('a')
+            # オッズ取得処理
+            self.get_select()
 
-        # リンクがない(= 開催なし)の場合
-        if links == []:
-            return []
+            # CSV出力処理
+            self.record_odds()
 
-        # レースURLからレースIDを抽出
-        for link in links:
-            a_url = link.get('href')
-            # 出走前のレースは「shutuba.html」
-            # 出走後のレースは「result.html」がリンクされている
-            if 'shutuba.html' in a_url:
-                race_id_list.append(a_url[29:41])
-            elif 'result.html' in a_url:
-                race_id_list.append(a_url[28:40])
+    def create_instance(self):
+        '''インスタンスの生成を行う'''
 
-    return race_id_list
+        if self.jra_flg:
+            try:
+                # 中央競馬用インスタンス作成
+                jra = jrarecordodds.Jra()
+            except Exception as e:
+                logger.error('中央_初期処理でエラー')
+                logger.error(e)
+                logger.error(traceback.format_exc())
+                self.jra_flg = False
 
-def time_check():
-    '''レースの時刻チェックを行い記録対象かの判断を行う'''
+        if self.nar_flg:
+            try:
+                # 地方競馬用インスタンス作成
+                nar = narrecordodds.Nar()
+            except Exception as e:
+                logger.error('地方_初期処理でエラー')
+                logger.error(e)
+                logger.error(traceback.format_exc())
+                self.nar_flg = False
 
-    # 各レース時刻の取得
-    time_schedule = get_race_time()
+        return jra, nar
 
-    # 現在時刻とレース時刻を比較
-    for idx in range(len(time_schedule)):
+    def continue_check(self):
+        '''処理を続けるか(=全レース記録済みでないか)のチェックを行う'''
 
-        # 既に記録が終了しているレースはチェックを行わない
-        if record_flg[idx] == 1:
-            continue
+        if self.jra_flg:
+            try:
+                # 中央が全レース記録済かチェック
+                self.jra_flg = self.jra.continue_check()
+            except Exception as e:
+                logger.error('中央_発走時刻更新処理でエラー')
+                logger.error(e)
+                logger.error(traceback.format_exc())
+                self.jra_flg = False
 
-        # 現在時刻取得
-        NOW = jst.now()
+        if self.nar_flg:
+            try:
+                # 地方が全レース記録済かチェック
+                self.nar_flg = self.nar.continue_check()
+            except Exception as e:
+                logger.error('地方_発走時刻更新処理でエラー')
+                logger.error(e)
+                logger.error(traceback.format_exc())
+                self.nar_flg = False
 
-        # 取得したレース予定時刻をdatetime型に変換
-        race_time = datetime.datetime.strptime(TODAY + time_schedule[idx], '%Y%m%d%H:%M')
+    def get_race_info(self):
+        '''発走時刻に変更があった場合に更新を行う'''
+        if self.jra_flg:
+            try:
+                # 中央発走時刻更新
+                self.jra.get_race_info()
+            except Exception as e:
+                logger.error('中央_発走時刻更新処理でエラー')
+                logger.error(e)
+                logger.error(traceback.format_exc())
+                self.jra_flg = False
 
-        # レースまでの秒数(レース予定時刻 - 現在の時刻)を設定
-        diff_time = int((race_time - NOW).total_seconds())
+        if self.nar_flg:
+            try:
+                # 地方発走時刻更新
+                self.nar.get_race_info()
+            except Exception as e:
+                logger.error('地方_発走時刻更新処理でエラー')
+                logger.error(e)
+                logger.error(traceback.format_exc())
+                self.nar_flg = False
 
-        # レースまでの残り時間によって記録を行う
-        if 50 <= diff_time <= 790:
-            # レース13分10秒前から50秒前まで暫定オッズを取得
-            get_odds(jra_race_id_list[idx], race_time.strftime('%H%M'), 0)
-            logger.info('{}{}Rの{}分前オッズを記録しました'.format(babacodechange.netkeiba(jra_race_id_list[idx][4:6]), jra_race_id_list[idx][10:], int(diff_time / 60)))
-        elif diff_time <= -1200:
-            # レース20分後に最終オッズを取得
-            get_odds(jra_race_id_list[idx], race_time.strftime('%H%M'), 1)
-            logger.info('{}{}Rの最終オッズを記録しました'.format(babacodechange.netkeiba(jra_race_id_list[idx][4:6]), jra_race_id_list[idx][10:]))
+    def time_check(self):
+        '''記録時間までの時間を取得し、待機する'''
+        jra_wait_time = 99999999
+        nar_wait_time = 99999999
 
-            # 最終オッズまで記録したレースは記録済みにする
-            record_flg[idx] = 1
+        if self.jra_flg:
+            try:
+                # 中央の発走までの時間チェック
+                jra_wait_time =  self.jra.time_check(True)
+                logger.info(f'中央：次の記録時間まで{jra_wait_time}秒')
+            except Exception as e:
+                logger.error('中央_待機時間チェック処理でエラー')
+                logger.error(e)
+                logger.error(traceback.format_exc())
+                self.jra_flg = False
+        else:
+            logger.info(f'中央の取得対象レースはありません')
 
-def get_odds_jra(race_id,  race_time, complete_flg):
-    '''中央競馬のレースのオッズ取得を行う
+        if self.nar_flg:
+            try:
+                # 地方の発走までの時間チェック
+                nar_wait_time = self.nar.time_check(True)
+                logger.info(f'地方：次の記録時間まで{nar_wait_time}秒')
+            except Exception as e:
+                logger.error('地方_時刻までの待機時間チェック処理でエラー')
+                logger.error(e)
+                logger.error(traceback.format_exc())
+                self.nar_flg = False
+        else:
+            logger.info(f'地方の取得対象レースはありません')
 
-    Args:
-        race_id(str):取得対象のレースID
-        race_time(str,HHMM):取得対象レースの出走(予定)時刻
-        complete_flg(int):取得対象が最終オッズか 1:最終 0:それ以外
+        # どちらか一方の待機時間が0の場合はもう一方の待機時間に合わせる
+        if jra_wait_time == 0 and nar_wait_time != 0:
+            time_left = nar_wait_time
+        elif jra_wait_time != 0 and nar_wait_time == 0:
+            time_left = jra_wait_time
+        # そうでない場合はより近い方の待機時間に合わせる
+        else:
+            time_left = min(jra_wait_time, nar_wait_time)
 
-    '''
-    # レースIDからURLとパラメータを設定し、JSONを受け取る
-    r = requests.get('https://race.netkeiba.com/api/api_get_jra_odds.html?race_id=' + race_id + '&type=1&action=init&sort=odds&compress=0')
-    data = r.json()
+        # どちらも更新されなかった場合(リカバリ処理)
+        if time_left == 99999999:
+            logger.warning('取得処理がどこかおかしいかも')
+            logger.warning('とりあえず10分待機します')
+            time_left = 661
 
-    # 受け取ったJSONをDataFrameに成形する
-    race_odds = pd.concat([pd.DataFrame.from_dict(data['data']['odds']['1']).T[0], pd.DataFrame.from_dict(data['data']['odds']['2']).T[[0, 1]]], axis = 1)
+        logger.info(f'次の記録時間まで{time_left}秒')
 
-    # レース情報(レースID, 記録時刻, 発走(予定)時刻, 最終オッズフラグ)を頭数分設定
-    race_info = [[race_id, jst.time(), race_time, complete_flg] for _ in range(len(race_odds))]
+        # 11分以上なら10分後に発走時刻再チェック
+        if time_left > 660:
+            time.sleep(600)
+            return False
+        elif time_left > 1:
+            time.sleep(time_left + 1)
+            return True
+        else:
+            return True
 
-    # 切り出したデータを結合
-    df = pd.concat([pd.DataFrame(race_info),  race_odds], axis = 1)
+    def get_select(self):
+        '''取得対象レースを抽出し、オッズ取得を行う'''
+        if self.jra_flg:
+            try:
+                # 暫定オッズ取得処理
+                self.jra.get_select_realtime()
+            except Exception as e:
+                logger.error('中央_暫定オッズ取得処理でエラー')
+                logger.error(e)
+                logger.error(traceback.format_exc())
+                self.jra_flg = False
 
-    # 各データのカラム名を設定
-    df_header = ['レースID', '記録時刻', '発走時刻', '最終オッズフラグ', '馬番', '単勝オッズ', '複勝下限オッズ', '複勝上限オッズ']
+        if self.nar_flg:
+            try:
+                # 暫定オッズ取得処理
+                self.nar.get_select_realtime()
+            except Exception as e:
+                logger.error('地方_暫定オッズ取得処理でエラー')
+                logger.error(e)
+                logger.error(traceback.format_exc())
+                self.nar_flg = False
 
-    # TODO
+        if self.jra_flg:
+            try:
+                # 暫定オッズ取得処理
+                self.jra.get_select_confirm()
+            except Exception as e:
+                logger.error('中央_確定オッズ取得処理でエラー')
+                logger.error(e)
+                logger.error(traceback.format_exc())
+                self.jra_flg = False
 
+        if self.nar_flg:
+            try:
+                # 暫定オッズ取得処理
+                self.nar.get_select_confirm()
+            except Exception as e:
+                logger.error('地方_確定オッズ取得処理でエラー')
+                logger.error(e)
+                logger.error(traceback.format_exc())
+                self.nar_flg = False
 
-def get_odds_nar(race_id, race_time, complete_flg):
-    '''地方競馬のレースのオッズ取得を行う
+    def record_odds(self):
+        '''取得したオッズデータをCSVに書き出す'''
+        # 記録データが格納されていてx分40秒を過ぎていなければCSV出力
+        if int(jst.second()) <= 40:
+            if len(self.jra.write_data) != 0:
+                try:
+                    self.jra.record_odds()
+                except Exception as e:
+                    logger.error('中央_CSV出力処理でエラー')
+                    logger.error(e)
+                    logger.error(traceback.format_exc())
+                    self.jra_flg = False
 
-    Args:
-        race_id(str):取得対象のレースID
-        race_time(str,HHMM):取得対象レースの出走(予定)時刻
-        complete_flg(int):取得対象が最終オッズか 1:最終 0:それ以外
-
-    '''
-    # レースIDからURLを指定しHTML情報の取得
-    URL = 'https://nar.netkeiba.com/odds/odds_get_form.html?type=b1&race_id=' + race_id + '&rf=shutuba_submenu'
-
-    # TBL情報の取得&エンコーディング
-    odds = pd.read_html(URL, encoding='utf-8')
-
-    race_odds = pd.concat([odds[0][['馬番','オッズ']], odds[1]['オッズ'].str.split(' - ', expand = True)], axis = 1)
-
-    # レース情報(レースID, 記録時刻, 発走(予定)時刻, 最終オッズフラグ)を頭数分設定
-    race_info = [[race_id, jst.time(), race_time, complete_flg] for _ in range(len(race_odds))]
-
-    # 切り出したデータを結合
-    df = pd.concat([pd.DataFrame(race_info), race_odds], axis = 1)
-
-    # 各データのカラム名を設定
-    df_header = ['レースID', '記録時刻', '発走時刻', '最終オッズフラグ', '馬番', '単勝オッズ', '複勝下限オッズ', '複勝上限オッズ']
-
-    # TODO
-
-    # Googleスプレッドシートに記載を行う
-    writesheet.write_spread_sheet(df, int(jst.time()[:6]), df_header)
-
-def get_race_time():
-    '''レース時刻の取得を行う
-
-    Returns:
-        race_time(list):稼働日のレース発走時刻を持つリスト
-
-    '''
-    # 稼働日の開催情報サイトのHTMLを取得
-    soup = soup.get_soup('https://race.netkeiba.com/top/race_list_sub.html?kaisai_date=' + TODAY)
-
-    # レース時刻を格納するリスト
-    race_time = []
-
-    # HTMLからレース時間記録用のクラス名を抽出
-    times = soup.find_all('span', class_='RaceList_Itemtime')
-
-    # タグと空白を削除しリストに追加
-    for time in times:
-        race_time.append(time.get_text(strip = False)[:5])
-
-    # レース時間を記録したリストを返す
-    return race_time
-
-def get_recent_time(NOW):
-    '''次の記録時間を取得する
-
-    Args:
-        NOW(datetime):前ループでの記録開始時刻
-
-    Returns:
-        recent_time(int):前ループから60秒後以降で直近の記録までの時間
-
-    '''
-
-    # 次の取得までの最短時間
-    recent_time = 99999
-
-    # 各レース時刻の取得
-    time_schedule = get_race_time()
-
-    # 現在時刻とレース時刻を比較
-    for idx in range(len(time_schedule)):
-
-        # 取得したレース予定時刻をdatetime型に変換
-        race_time = datetime.datetime.strptime(TODAY + time_schedule[idx], '%Y%m%d%H:%M')
-
-        # レースまでの秒数(レース予定時刻 - 現在の時刻)を設定
-        diff_time = (race_time - NOW).seconds
-
-        # 記録が終了していない
-        if record_flg[idx] == 0:
-            # 60秒後に記録対象となる場合
-            if 50 <= diff_time - 60 <= 790 or -1260 <= diff_time - 60 <= -1200:
-                return 60
-            # 60秒後にレース締め切り時間を越す場合
-            elif diff_time - 60 <= 50:
-                recent_time = min(recent_time, diff_time - 60 + 1200)
-            # 60秒後はまだ一度も記録していない場合
-            elif 790 <= diff_time - 60:
-                recent_time = min(recent_time, diff_time - 60 - 790)
-
-    return recent_time
+            if len(self.nar.write_data) != 0:
+                try:
+                    self.nar.record_odds()
+                except Exception as e:
+                    logger.error('地方_CSV出力処理でエラー')
+                    logger.error(e)
+                    logger.error(traceback.format_exc())
+                    self.nar_flg = False
 
 if __name__ == '__main__':
-    # 日本時間取得クラスのインスタンス作成
-    jst = jst.Jst()
-
-    # 簡易型ロギングクラスのインスタンス作成
+    # ログ用インスタンス作成
     logger = logger.Logger()
 
-    # HTMLSessionのインスタンス作成
-    session = HTMLSession()
+    # 中央・地方処理呼び出しクラス
+    ro = RecordOdds()
 
-    # 稼働日の日付を取得
-    TODAY = jst.date()
-
-    # 稼働日のレースIDを取得
-    jra_race_id_list = get_race_id(1)
-    nar_race_id_list = get_race_id(0)
-
-    # TODO
-    print(jra_race_id_list)
-    print(nar_race_id_list)
-
-    exit()
-
-    # 稼働日にレースがない場合
-    if jra_race_id_list == []:
-        logger.info('本日の中央開催はありません')
-
-    logger.info('記録対象レース数：{0}'.format(len(jra_race_id_list)))
-
-    # 記録済みフラグを設定
-    record_flg = [0 for _ in range(len(jra_race_id_list))]
-
-    # メイン処理
-    main()
