@@ -2,7 +2,9 @@ import inspect
 import logging
 import os
 import sys
+import re
 from pathlib import Path
+from common import jst
 
 class Logger():
     '''loggerの設定を簡略化
@@ -21,10 +23,17 @@ class Logger():
         self.set()
 
     def set(self):
-        # 既にloggerが設定されている場合はリセット(重複出力防止)
+        # 重複出力防止処理
         for h in self.logger.handlers[:]:
+            # 作成ログファイル名を取得
+            log_path = re.search(r'<FileHandler (.+) \(INFO\)>', str(h))
+            # 出力対象/占有ロックから外す
             self.logger.removeHandler(h)
             h.close()
+            # ログファイルの中身が空なら削除
+            if log_path != None:
+                if os.stat(log_path.group(1)).st_size == 0:
+                    os.remove(log_path.group(1))
 
         # フォーマットの設定
         formatter = logging.Formatter('%(asctime)s - [%(levelname)s] %(message)s')
@@ -38,7 +47,7 @@ class Logger():
             if not os.path.exists('../../log'):
                 os.makedirs('../../log')
             # 出力先を設定
-            handler = logging.FileHandler(f'../../log/{self.filename}.log')
+            handler = logging.FileHandler(f'../../log/{self.filename}_{jst.date()}.log')
             # 出力レベルを設定
             handler.setLevel(logging.INFO)
             # フォーマットの設定
