@@ -173,13 +173,27 @@ class Jra():
 
         # 発走時刻の切り出し
         for param in self.info_param:
-            baba_race_time = []
-            soup = self.do_action(param)
-            if soup == -1:
-                logger.error(f'出馬表一覧の取得に失敗しました')
-                raise
+            # 正常なHTMLが取得できていない場合のリカバリ処理
+            for i in range(5):
+                baba_race_time = []
+                soup = self.do_action(param)
+                if soup == -1:
+                    logger.error(f'{babacodechange.jra(param[9:11])}競馬場のレーステーブルの取得に失敗')
+                    raise
 
-            info_table = pd_read.html(str(soup))[0]
+                # HTMLからレース情報記載のテーブル箇所のみDataFrameに切り出し
+                info_table = pd_read.html(str(soup))[0]
+
+                # カラムが正常に取れているかのチェック
+                if '発走時刻' in info_table.columns:
+                    break
+
+                logger.warning(f'{babacodechange.jra(param[9:11])}競馬場のレーステーブルの正常データ取得に失敗')
+                time.sleep(3)
+
+                if i == 4:
+                    logger.error('5度リトライしましたが正常なデータが取れませんでした。処理を終了します')
+                    raise
 
             logger.info(f'{babacodechange.jra(param[9:11])}競馬場のレーステーブル取得')
 
