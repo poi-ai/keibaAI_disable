@@ -5,6 +5,7 @@ import package
 import re
 import requests
 import sys
+import time
 import traceback
 from bs4 import BeautifulSoup
 from common import logger, jst, soup, writecsv
@@ -109,14 +110,21 @@ class ResultOdds():
             if not self.date_check():
                 break
 
+            logger.info(f'{jst.change_format(self.date, "%Y%m%d", "%Y/%m/%d")}のオッズデータの取得を開始します')
+
             # 競馬場URLの取得
             for baba_url in self.get_kaisai():
                 # レースURLの取得
-                race_url = self.get_race_url(baba_url)
-                # オッズテーブルの取得
-                odds_table = self.get_odds(race_url)
-                # テーブルデータの加工/CSV出力
-                self.record_odds(race_url, odds_table)
+                race_urls = self.get_race_url(baba_url)
+
+                for race_url in race_urls:
+
+                    # オッズテーブルの取得
+                    odds_table = self.get_odds(race_url)
+                    # テーブルデータの加工/CSV出力
+                    self.record_odds(race_url, odds_table)
+
+                    time.sleep(2)
 
             # 1日前へ
             self.date = jst.yesterday(self.date)
@@ -143,12 +151,10 @@ class ResultOdds():
         result = soup.get_soup(baba_url)
         race_number = result.find_all('ul', class_ = 'raceNumber')
 
-        for race_url in [link.get('href') for link in race_number[0].find_all('a')]:
-            self.get_odds(race_url)
+        return [link.get('href') for link in race_number[0].find_all('a')]
 
     def get_odds(self, race_url):
         '''レースURLから単勝・複勝オッズのテーブルデータを取得する'''
-        print(race_url)
         return pd.read_html(f'{self.url.TANFUKU}{race_url[-18:]}')
 
     def record_odds(self, race_url, odds_table):
@@ -216,7 +222,12 @@ if __name__ == '__main__':
 
     # オッズ取得用クラス呼び出し
     try:
-        ro = ResultOdds(sys.argv[1], sys.argv[2])
+        if len(sys.argv) >= 3:
+            ro = ResultOdds(sys.argv[1], sys.argv[2])
+        elif len(sys.argv) == 2:
+            ro = ResultOdds(sys.argv[1])
+        else:
+            ro = ResultOdds()
     except Exception as e:
         logger.error(e)
         logger.error(traceback.format_exc())
