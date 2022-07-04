@@ -13,7 +13,7 @@ class Logger():
 
     Args:
         output(int):出力タイプを指定
-                    0:ログ出力、1:標準出力、空:両方出力
+                    0:ログのみ出力、1:コンソールのみ出力、空:両方出力
 
     '''
     def __init__(self, output=None):
@@ -42,7 +42,7 @@ class Logger():
         self.logger.setLevel(logging.INFO)
 
         # ログ出力設定
-        if self.output != 0:
+        if self.output != 1:
             # ログフォルダチェック。無ければ作成
             if not os.path.exists('../../log'):
                 os.makedirs('../../log')
@@ -56,7 +56,7 @@ class Logger():
             self.logger.addHandler(handler)
 
         # コンソール出力設定
-        if self.output != 1:
+        if self.output != 0:
             # ハンドラの設定
             handler = logging.StreamHandler(sys.stdout)
             # 出力レベルを設定

@@ -8,8 +8,9 @@ import sys
 import time
 import traceback
 from bs4 import BeautifulSoup
-from common import logger, jst, soup, writecsv
+from common import logger, jst, soup, writecsv, babacodechange
 from datetime import datetime, timedelta
+from tqdm import tqdm
 
 class ResultOdds():
     '''楽天競馬のサイトから地方競馬の確定オッズを取得する
@@ -20,6 +21,7 @@ class ResultOdds():
         oldest_date(str) : 取得対象の最も古い日付(yyyyMMdd)
                           デフォルト : 20100601(閲覧可能な最古の日付)
         date(str) : 取得対象の日付(yyyyMMdd)
+        url(URL) : 楽天競馬サイト内のURL一覧
     '''
 
     def __init__(self, oldest_date = '20100601', latest_date = jst.yesterday()):
@@ -104,40 +106,80 @@ class ResultOdds():
     def main(self):
         '''主処理、各メソッドの呼び出し'''
 
+        # 対象の日数計算
+        days = self.days_calc()
+
         # 1日ずつ遡って取得処理を行う
-        while True:
-            # 日付チェック
-            if not self.date_check():
-                break
+        for _ in tqdm(range(days)):
 
             logger.info(f'{jst.change_format(self.date, "%Y%m%d", "%Y/%m/%d")}のオッズデータの取得を開始します')
 
-            # 競馬場URLの取得
-            for baba_url in self.get_kaisai():
-                # レースURLの取得
-                race_urls = self.get_race_url(baba_url)
+            try:
+                # 対象日に開催された競馬場URLの取得
+                baba_urls = self.get_kaisai()
+            except Exception as e:
+                logger.error('競馬場URL取得処理でエラー')
+                logger.error(e)
+                logger.error(traceback.format_exc())
+                exit()
+
+            for baba_url in baba_urls:
+                logger.info(f'{babacodechange.rakuten(self.extract_info(baba_url)[1])}競馬場のオッズデータを取得します')
+                try:
+                    # 指定競馬場内での各レースURLの取得
+                    race_urls = self.get_race_url(baba_url)
+                except Exception as e:
+                    logger.error('レースURL取得処理でエラー')
+                    logger.error(e)
+                    logger.error(traceback.format_exc())
+                    exit()
 
                 for race_url in race_urls:
 
-                    # オッズテーブルの取得
-                    odds_table = self.get_odds(race_url)
-                    # テーブルデータの加工/CSV出力
-                    self.record_odds(race_url, odds_table)
+                    logger.info(f'{self.extract_info(race_url)[3]}Rのオッズデータを取得します')
+                    try:
+                        # オッズテーブルの取得
+                        odds_table = self.get_odds(race_url)
+                    except Exception as e:
+                        logger.error('オッズテーブル取得処理でエラー')
+                        logger.error(e)
+                        logger.error(traceback.format_exc())
+                        exit()
 
-                    time.sleep(2)
+                    try:
+                        # テーブルデータの加工/CSV出力
+                        self.record_odds(race_url, odds_table)
+                    except Exception as e:
+                        logger.error('テーブルデータの処理でエラー')
+                        logger.error(e)
+                        logger.error(traceback.format_exc())
+                        exit()
+
+                    time.sleep(3)
 
             # 1日前へ
             self.date = jst.yesterday(self.date)
 
-    def date_check(self):
-        '''対象日付内かのチェックを行う'''
-        if self.oldest_date <= self.date <= self.latest_date:
-            return True
-        return False
+    def days_calc(self):
+        '''取得対象の日数を計算する'''
+        target_date = self.latest_date
+        counter = 0
+
+        while True:
+            if target_date < self.oldest_date:
+                break
+            counter += 1
+            target_date = jst.yesterday(target_date)
+
+        return counter
 
     def get_kaisai(self):
         '''指定した日に開催される競馬場のURLを取得する'''
         result = soup.get_soup(f'{self.url.RACE_CARD}{self.date}0000000000')
+        if result == -1:
+            logger.error(f'競馬場一覧情報の取得に失敗しました')
+            raise
+
         race_track = result.find_all('ul', class_ = 'raceTrack')
 
         if len(race_track) == 0:
@@ -149,22 +191,39 @@ class ResultOdds():
     def get_race_url(self, baba_url):
         '''指定した競馬場(日付)に開催されるレースのURLを取得する'''
         result = soup.get_soup(baba_url)
+        if result == -1:
+            logger.error(f'レースURLの取得に失敗しました')
+            raise
+
         race_number = result.find_all('ul', class_ = 'raceNumber')
 
         return [link.get('href') for link in race_number[0].find_all('a')]
 
     def get_odds(self, race_url):
         '''レースURLから単勝・複勝オッズのテーブルデータを取得する'''
-        return pd.read_html(f'{self.url.TANFUKU}{race_url[-18:]}')
+        table = pd.read_html(f'{self.url.TANFUKU}{race_url[-18:]}')
+        if table == -1:
+            logger.error(f'オッズテーブルの取得に失敗しました')
+            raise
+        return table
 
     def record_odds(self, race_url, odds_table):
         '''レース/オッズ情報を加工する'''
-        # オッズテーブルから必要なカラムだけ抜き出す
-        odds = odds_table[0][['馬番', '単勝オッズ', '複勝オッズ']]
-        # 複勝オッズを下限と上限に分割
-        fukusho = odds['複勝オッズ'].str.split(' - ', expand = True)
-        # 元のカラムは削除
-        odds = odds.drop('複勝オッズ', axis=1)
+
+        # 複勝が存在する場合
+        if '複勝オッズ' in odds_table[0].columns:
+            # オッズテーブルから必要なカラムだけ抜き出す
+            odds = odds_table[0][['馬番', '単勝オッズ', '複勝オッズ']]
+            # 複勝オッズを下限と上限に分割
+            fukusho = odds['複勝オッズ'].str.split(' - ', expand = True)
+            # 元のカラムは削除
+            odds = odds.drop('複勝オッズ', axis=1)
+        else:
+            # オッズテーブルから必要なカラムだけ抜き出す
+            odds = odds_table[0][['馬番', '単勝オッズ']]
+            # 複勝オッズの箇所にNULLを挿入
+            fukusho = pd.DataFrame([['', ''] for _ in range(len(odds))], index = odds.index)
+
         # レースURLからレース情報を抽出する
         race_info = self.extract_info(race_url)
 
@@ -218,7 +277,8 @@ class URL():
 
 if __name__ == '__main__':
     # ログ用インスタンス作成
-    logger = logger.Logger()
+    # プログレスバーを出すためコンソールには出力しない
+    logger = logger.Logger(0)
 
     # オッズ取得用クラス呼び出し
     try:
