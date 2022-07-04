@@ -3,7 +3,7 @@ import package
 import time
 import traceback
 import datetime
-from common import babacodechange, jst, logger as lg, writecsv, pd_read
+from common import babacodechange, jst, logger as lg, output, pd_read
 
 # ログ用インスタンス作成
 logger = lg.Logger()
@@ -203,7 +203,7 @@ class Nar():
     def record_odds(self):
         '''取得したオッズをCSV/Google Spread Sheetに出力する'''
         # CSVに出力する
-        writecsv.write_csv(self.write_data)
+        output.odds(self.write_data, 'realtime')
         # TODO Google Spread Sheetに出力
         # writesheet.write_spread_sheet(self.write_data, jst.month().zfill(2))
 
@@ -319,7 +319,7 @@ class RaceInfo():
     def jra_flg(self, jra_flg):
         self.__jra_flg = jra_flg
 
-# 動作確認用
+# 単体起動時
 if __name__ == '__main__':
 
     # ログ用インスタンス作成

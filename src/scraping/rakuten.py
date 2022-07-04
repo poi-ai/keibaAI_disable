@@ -4,7 +4,7 @@ import re
 import sys
 import time
 import traceback
-from common import logger, jst, soup, writecsv, babacodechange
+from common import logger, jst, output, soup, babacodechange
 from datetime import datetime
 from tqdm import tqdm
 
@@ -231,7 +231,7 @@ class ResultOdds():
         write_df.columns = ['発走日', '競馬場コード', 'レース番号', '馬番', '単勝オッズ', '複勝オッズ下限', '複勝オッズ上限']
 
         # CSVに出力する
-        writecsv.write_csv(write_df)
+        output.odds(write_df, 'result')
 
     def extract_info(self, race_url):
         '''レース関連URLの下18桁を分割して返す'''
