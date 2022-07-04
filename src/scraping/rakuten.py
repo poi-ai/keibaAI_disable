@@ -1,15 +1,11 @@
-import csv
-import lxml
 import pandas as pd
 import package
 import re
-import requests
 import sys
 import time
 import traceback
-from bs4 import BeautifulSoup
 from common import logger, jst, soup, writecsv, babacodechange
-from datetime import datetime, timedelta
+from datetime import datetime
 from tqdm import tqdm
 
 class ResultOdds():
