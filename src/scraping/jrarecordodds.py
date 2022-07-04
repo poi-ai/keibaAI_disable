@@ -24,6 +24,7 @@ class Jra():
        race_info(list<RaceInfo>) : 各レース情報を持つリスト
        next_get_time(datetime) : 次回オッズ取得時刻
        write_data(DataFrame) : 出力まで一時保存するオッズデータ
+       kaisai(bool) : レース開催があるか
     '''
     # オッズ関連ページのURL
     ODDS_URL = 'https://www.jra.go.jp/JRADB/accessO.html'
@@ -39,10 +40,13 @@ class Jra():
         self.__race_info = []
         self.__next_get_time = 0
         self.__write_data = pd.DataFrame(columns = ['レースID','馬番', '単勝オッズ', '複勝下限オッズ', '複勝上限オッズ', '記録時刻', '発走まで', 'JRAフラグ'])
-        self.get_param('odds')
-        self.get_param('info')
-        self.get_race_info(True)
-        logger.info(f'初期処理終了 開催場数：{len(self.odds_param)} 記録対象レース数：{len(self.race_info)}')
+        if self.get_param('odds'):
+            self.__kaisai = True
+            self.get_param('info')
+            self.get_race_info(True)
+            logger.info(f'初期処理終了 開催場数：{len(self.odds_param)} 記録対象レース数：{len(self.race_info)}')
+        else:
+            self.__kaisai = False
 
     @property
     def odds_param(self):
@@ -64,6 +68,10 @@ class Jra():
     def write_data(self):
         return self.__write_data
 
+    @property
+    def kaisai(self):
+        return self.__kaisai
+
     @odds_param.setter
     def odds_param(self, odds_param):
         self.__odds_param = odds_param
@@ -79,6 +87,10 @@ class Jra():
     @write_data.setter
     def write_data(self, write_data):
         self.__write_data = write_data
+
+    @kaisai.setter
+    def write_data(self, kaisai):
+        self.__kaisai = kaisai
 
     def do_action(self, cname, sleep_time = 0, retry_count = 3):
         '''POSTリクエストを送り、HTML情報を受け取る
@@ -123,7 +135,6 @@ class Jra():
         Args:
             page_type(str):サイトの種類
                            odds:オッズページ,info:出馬表ページ
-
         '''
         # 今週の開催一覧ページのHTMLを取得
         if page_type == 'odds':
@@ -157,10 +168,10 @@ class Jra():
                 else:
                     self.info_param = self.extract_param(links)
                 time.sleep(3)
-                return
+                return True
 
-        logger.info('本日行われるレースはありません')
-        exit()
+        # 開催がない場合
+        return False
 
     def get_race_info(self, init_flg = False):
         '''レース情報を取得
@@ -455,6 +466,10 @@ if __name__ == '__main__':
         logger.error('初期処理でエラー')
         logger.error(e)
         logger.error(traceback.format_exc())
+        exit()
+
+    if not jra.kaisai:
+        logger.info('本日行われるレースはありません')
         exit()
 
     while True:

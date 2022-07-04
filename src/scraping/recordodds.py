@@ -77,6 +77,10 @@ class RecordOdds():
                 logger.error(traceback.format_exc())
                 self.jra_flg = False
 
+        if not jra.kaisai:
+            logger.info('中央_本日の開催はありません')
+            self.jra_flg = False
+
         if self.nar_flg:
             try:
                 # 地方競馬用インスタンス作成
