@@ -3,7 +3,7 @@ import package
 import time
 import traceback
 import datetime
-from common import babacodechange, jst, logger as lg, output, pd_read
+from common import babacodechange, jst, logger as lg, output, pd_read, line
 
 # ログ用インスタンス作成
 logger = lg.Logger()
@@ -26,6 +26,7 @@ class Nar():
     def __init__(self):
         logger.info('----------------------------')
         logger.info('地方競馬オッズ記録システム起動')
+        line.send('地方競馬オッズ記録システム起動')
         logger.info('初期処理開始')
         self.__baba_url = []
         self.__race_info = []
@@ -265,6 +266,21 @@ class Nar():
             if int(jst.second()) > 40:
                 break
 
+    def error_output(self, message, e, stacktrace):
+        '''エラー時のログ出力/LINE通知を行う
+
+        Args:
+            message(str) : エラーメッセージ
+            e(str) : エラー名
+            stacktrace(str) : スタックトレース
+        '''
+        logger.error(message)
+        logger.error(e)
+        logger.error(stacktrace)
+        line.send(message)
+        line.send(e)
+        line.send(stacktrace)
+
 class RaceInfo():
     '''各レースの情報を保持を行う
     Instance Parameter:
@@ -332,6 +348,9 @@ if __name__ == '__main__':
         logger.error('初期処理でエラー')
         logger.error(e)
         logger.error(traceback.format_exc())
+        line.send('初期処理でエラー')
+        line.send(e)
+        line.send(traceback.format_exc())
         exit()
 
     while True:
@@ -340,9 +359,7 @@ if __name__ == '__main__':
             if not nar.continue_check():
                 break
         except Exception as e:
-            logger.error('発走時刻更新処理でエラー')
-            logger.error(e)
-            logger.error(traceback.format_exc())
+            nar.error_output('記録済みチェック処理でエラー', e, traceback.format_exc())
             exit()
 
         while True:
@@ -350,9 +367,7 @@ if __name__ == '__main__':
                 # 発走時刻更新
                 nar.get_race_info()
             except Exception as e:
-                logger.error('発走時刻更新処理でエラー')
-                logger.error(e)
-                logger.error(traceback.format_exc())
+                nar.error_output('発走時刻更新処理でエラー', e, traceback.format_exc())
                 exit()
 
             try:
@@ -360,18 +375,14 @@ if __name__ == '__main__':
                 if nar.time_check():
                     break
             except Exception as e:
-                logger.error('発走時刻までの待機処理でエラー')
-                logger.error(e)
-                logger.error(traceback.format_exc())
+                nar.error_output('発走時刻までの待機処理でエラー', e, traceback.format_exc())
                 exit()
 
         try:
             # 暫定オッズ取得処理
             nar.get_select_realtime()
         except Exception as e:
-            logger.error('暫定オッズ取得処理でエラー')
-            logger.error(e)
-            logger.error(traceback.format_exc())
+            nar.error_output('暫定オッズ取得処理でエラー', e, traceback.format_exc())
             exit()
 
         time.sleep(2)
@@ -380,9 +391,7 @@ if __name__ == '__main__':
             # 確定オッズ取得処理
             nar.get_select_confirm()
         except Exception as e:
-            logger.error('確定オッズ取得処理でエラー')
-            logger.error(e)
-            logger.error(traceback.format_exc())
+            nar.error_output('確定オッズ取得処理でエラー', e, traceback.format_exc())
             exit()
 
         # 記録データが格納されていてx分40秒を過ぎていなければCSV出力
@@ -390,9 +399,8 @@ if __name__ == '__main__':
             try:
                 nar.record_odds()
             except Exception as e:
-                logger.error('オッズ出力処理でエラー')
-                logger.error(e)
-                logger.error(traceback.format_exc())
+                nar.error_output('オッズ出力処理でエラー', e, traceback.format_exc())
                 exit()
 
     logger.info('地方競馬オッズ記録システム終了')
+    line.send('地方競馬オッズ記録システム終了')

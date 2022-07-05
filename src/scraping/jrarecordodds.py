@@ -6,7 +6,7 @@ import traceback
 import re
 import requests
 from bs4 import BeautifulSoup
-from common import babacodechange, jst, logger as lg, output, pd_read
+from common import babacodechange, jst, logger as lg, output, pd_read, line
 
 # ログ用インスタンス作成
 logger = lg.Logger()
@@ -34,6 +34,7 @@ class Jra():
     def __init__(self):
         logger.info('----------------------------')
         logger.info('中央競馬オッズ記録システム起動')
+        line.send('中央競馬オッズ記録システム起動')
         logger.info('初期処理開始')
         self.__odds_param = []
         self.__info_param = []
@@ -393,6 +394,21 @@ class Jra():
 
         logger.info('オッズデータをCSVへ出力')
 
+    def error_output(self, message, e, stacktrace):
+        '''エラー時のログ出力/LINE通知を行う
+
+        Args:
+            message(str) : エラーメッセージ
+            e(str) : エラー名
+            stacktrace(str) : スタックトレース
+        '''
+        logger.error(message)
+        logger.error(e)
+        logger.error(stacktrace)
+        line.send(message)
+        line.send(e)
+        line.send(stacktrace)
+
 class RaceInfo():
     '''各レースの情報を保持を行う
     Instance Parameter:
@@ -455,7 +471,6 @@ class RaceInfo():
 
 # 単体起動時
 if __name__ == '__main__':
-
     # ログ用インスタンス作成
     logger = lg.Logger()
 
@@ -466,6 +481,9 @@ if __name__ == '__main__':
         logger.error('初期処理でエラー')
         logger.error(e)
         logger.error(traceback.format_exc())
+        line.send('初期処理でエラー')
+        line.send(e)
+        line.send(traceback.format_exc())
         exit()
 
     if not jra.kaisai:
@@ -478,9 +496,7 @@ if __name__ == '__main__':
             if not jra.continue_check():
                 break
         except Exception as e:
-            logger.error('発走時刻更新処理でエラー')
-            logger.error(e)
-            logger.error(traceback.format_exc())
+            jra.error_output('記録済みチェック処理でエラー', e, traceback.format_exc())
             exit()
 
         while True:
@@ -488,9 +504,7 @@ if __name__ == '__main__':
                 # 発走時刻更新
                 jra.get_race_info()
             except Exception as e:
-                logger.error('発走時刻更新処理でエラー')
-                logger.error(e)
-                logger.error(traceback.format_exc())
+                jra.error_output('発走時刻更新処理でエラー', e, traceback.format_exc())
                 exit()
 
             try:
@@ -498,18 +512,14 @@ if __name__ == '__main__':
                 if jra.time_check():
                     break
             except Exception as e:
-                logger.error('発走時刻までの待機処理でエラー')
-                logger.error(e)
-                logger.error(traceback.format_exc())
+                jra.error_output('発走時刻までの待機処理でエラー', e, traceback.format_exc())
                 exit()
 
         try:
             # 暫定オッズ取得処理
             jra.get_select_realtime()
         except Exception as e:
-            logger.error('暫定オッズ取得処理でエラー')
-            logger.error(e)
-            logger.error(traceback.format_exc())
+            jra.error_output('暫定オッズ取得処理でエラー', e, traceback.format_exc())
             exit()
 
         time.sleep(2)
@@ -518,9 +528,7 @@ if __name__ == '__main__':
             # 確定オッズ取得処理
             jra.get_select_confirm()
         except Exception as e:
-            logger.error('確定オッズ取得処理でエラー')
-            logger.error(e)
-            logger.error(traceback.format_exc())
+            jra.error_output('確定オッズ取得処理でエラー', e, traceback.format_exc())
             exit()
 
         # 記録データが格納されていてx分40秒を過ぎていなければCSV出力
@@ -528,9 +536,8 @@ if __name__ == '__main__':
             try:
                 jra.record_odds()
             except Exception as e:
-                logger.error('オッズ出力処理でエラー')
-                logger.error(e)
-                logger.error(traceback.format_exc())
+                jra.error_output('オッズ出力処理でエラー', e, traceback.format_exc())
                 exit()
 
     logger.info('中央競馬オッズ記録システム終了')
+    line.send('中央競馬オッズ記録システム終了')

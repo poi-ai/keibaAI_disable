@@ -3,7 +3,7 @@ import narrecordodds
 import package
 import time
 import traceback
-from common import logger, jst
+from common import logger, jst, line
 
 class RecordOdds():
     '''中央・地方競馬オッズ取得
@@ -17,10 +17,12 @@ class RecordOdds():
         logger.info('----------------------------')
         logger.info('中央・地方競馬オッズ記録システム起動')
         logger.info('初期処理開始')
+        line.send('中央・地方競馬オッズ記録システム起動')
         self.__jra, self.__nar = self.create_instance()
         logger.info('初期処理終了')
         self.main()
-        logger.info('中央地方競馬オッズ記録システム終了')
+        logger.info('中央・地方競馬オッズ記録システム終了')
+        line.send('中央・地方競馬オッズ記録システム終了')
 
     @property
     def jra(self): return self.__jra
@@ -72,9 +74,7 @@ class RecordOdds():
                 # 中央競馬用インスタンス作成
                 jra = jrarecordodds.Jra()
             except Exception as e:
-                logger.error('中央_初期処理でエラー')
-                logger.error(e)
-                logger.error(traceback.format_exc())
+                self.error_output('中央_初期処理でエラー', e, traceback.format_exc())
                 self.jra_flg = False
 
         if not jra.kaisai:
@@ -86,9 +86,7 @@ class RecordOdds():
                 # 地方競馬用インスタンス作成
                 nar = narrecordodds.Nar()
             except Exception as e:
-                logger.error('地方_初期処理でエラー')
-                logger.error(e)
-                logger.error(traceback.format_exc())
+                self.error_output('地方_初期処理でエラー', e, traceback.format_exc())
                 self.nar_flg = False
 
         return jra, nar
@@ -101,9 +99,7 @@ class RecordOdds():
                 # 中央が全レース記録済かチェック
                 self.jra_flg = self.jra.continue_check()
             except Exception as e:
-                logger.error('中央_発走時刻更新処理でエラー')
-                logger.error(e)
-                logger.error(traceback.format_exc())
+                self.error_output('中央_記録済みチェック処理でエラー', e, traceback.format_exc())
                 self.jra_flg = False
 
         if self.nar_flg:
@@ -111,9 +107,7 @@ class RecordOdds():
                 # 地方が全レース記録済かチェック
                 self.nar_flg = self.nar.continue_check()
             except Exception as e:
-                logger.error('地方_発走時刻更新処理でエラー')
-                logger.error(e)
-                logger.error(traceback.format_exc())
+                self.error_output('地方_記録済みチェック処理でエラー', e, traceback.format_exc())
                 self.nar_flg = False
 
     def get_race_info(self):
@@ -123,9 +117,7 @@ class RecordOdds():
                 # 中央発走時刻更新
                 self.jra.get_race_info()
             except Exception as e:
-                logger.error('中央_発走時刻更新処理でエラー')
-                logger.error(e)
-                logger.error(traceback.format_exc())
+                self.error_output('中央_発走時刻更新処理でエラー', e, traceback.format_exc())
                 self.jra_flg = False
 
         if self.nar_flg:
@@ -133,9 +125,7 @@ class RecordOdds():
                 # 地方発走時刻更新
                 self.nar.get_race_info()
             except Exception as e:
-                logger.error('地方_発走時刻更新処理でエラー')
-                logger.error(e)
-                logger.error(traceback.format_exc())
+                self.error_output('地方_発走時刻更新処理でエラー', e, traceback.format_exc())
                 self.nar_flg = False
 
     def time_check(self):
@@ -149,9 +139,7 @@ class RecordOdds():
                 jra_wait_time =  self.jra.time_check(True)
                 logger.info(f'中央：次の記録時間まで{jra_wait_time}秒')
             except Exception as e:
-                logger.error('中央_待機時間チェック処理でエラー')
-                logger.error(e)
-                logger.error(traceback.format_exc())
+                self.error_output('中央_待機時間チェック処理でエラー', e, traceback.format_exc())
                 self.jra_flg = False
         else:
             logger.info(f'中央の取得対象レースはありません')
@@ -162,9 +150,7 @@ class RecordOdds():
                 nar_wait_time = self.nar.time_check(True)
                 logger.info(f'地方：次の記録時間まで{nar_wait_time}秒')
             except Exception as e:
-                logger.error('地方_時刻までの待機時間チェック処理でエラー')
-                logger.error(e)
-                logger.error(traceback.format_exc())
+                self.error_output('地方_時刻までの待機時間チェック処理でエラー', e, traceback.format_exc())
                 self.nar_flg = False
         else:
             logger.info(f'地方の取得対象レースはありません')
@@ -203,9 +189,7 @@ class RecordOdds():
                 # 暫定オッズ取得処理
                 self.jra.get_select_realtime()
             except Exception as e:
-                logger.error('中央_暫定オッズ取得処理でエラー')
-                logger.error(e)
-                logger.error(traceback.format_exc())
+                self.error_output('中央_暫定オッズ取得処理でエラー', e, traceback.format_exc())
                 self.jra_flg = False
 
         if self.nar_flg:
@@ -213,9 +197,7 @@ class RecordOdds():
                 # 暫定オッズ取得処理
                 self.nar.get_select_realtime()
             except Exception as e:
-                logger.error('地方_暫定オッズ取得処理でエラー')
-                logger.error(e)
-                logger.error(traceback.format_exc())
+                self.error_output('地方_暫定オッズ取得処理でエラー', e, traceback.format_exc())
                 self.nar_flg = False
 
         if self.jra_flg:
@@ -223,9 +205,7 @@ class RecordOdds():
                 # 暫定オッズ取得処理
                 self.jra.get_select_confirm()
             except Exception as e:
-                logger.error('中央_確定オッズ取得処理でエラー')
-                logger.error(e)
-                logger.error(traceback.format_exc())
+                self.error_output('中央_確定オッズ取得処理でエラー', e, traceback.format_exc())
                 self.jra_flg = False
 
         if self.nar_flg:
@@ -233,9 +213,7 @@ class RecordOdds():
                 # 暫定オッズ取得処理
                 self.nar.get_select_confirm()
             except Exception as e:
-                logger.error('地方_確定オッズ取得処理でエラー')
-                logger.error(e)
-                logger.error(traceback.format_exc())
+                self.error_output('地方_確定オッズ取得処理でエラー', e, traceback.format_exc())
                 self.nar_flg = False
 
     def record_odds(self):
@@ -246,19 +224,30 @@ class RecordOdds():
                 try:
                     self.jra.record_odds()
                 except Exception as e:
-                    logger.error('中央_CSV出力処理でエラー')
-                    logger.error(e)
-                    logger.error(traceback.format_exc())
+                    self.error_output('中央_CSV出力処理でエラー', e, traceback.format_exc())
                     self.jra_flg = False
 
             if len(self.nar.write_data) != 0:
                 try:
                     self.nar.record_odds()
                 except Exception as e:
-                    logger.error('地方_CSV出力処理でエラー')
-                    logger.error(e)
-                    logger.error(traceback.format_exc())
+                    self.error_output('地方_CSV出力処理でエラー', e, traceback.format_exc())
                     self.nar_flg = False
+
+    def error_output(self, message, e, stacktrace):
+        '''エラー時のログ出力/LINE通知を行う
+
+        Args:
+            message(str) : エラーメッセージ
+            e(str) : エラー名
+            stacktrace(str) : スタックトレース
+        '''
+        logger.error(message)
+        logger.error(e)
+        logger.error(stacktrace)
+        line.send(message)
+        line.send(e)
+        line.send(stacktrace)
 
 if __name__ == '__main__':
     # ログ用インスタンス作成
