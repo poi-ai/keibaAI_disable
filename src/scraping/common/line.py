@@ -2,15 +2,15 @@ import os
 import requests
 
 def send(message):
-    """ LINEにメッセージを送信する
+    ''' LINEにメッセージを送信する
         同階層にLINE NoticeのAPIトークンコードが記載されている
         「line_token.txt」が必要
 
     Args:
         message(str) : LINE送信するメッセージ内容
 
-    """
-    filepath = os.path.dirname(__file__) + '\\line_token.txt'
+    '''
+    filepath = os.path.join(os.path.dirname(__file__), 'line_token.txt')
 
     # トークンファイルが存在するなら
     if os.path.isfile(filepath):

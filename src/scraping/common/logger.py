@@ -25,7 +25,7 @@ class Logger():
     def set(self):
         # 重複出力防止処理
         for h in self.logger.handlers[:]:
-            # 作成ログファイル名を取得
+            # 起動中ログファイル名を取得
             log_path = re.search(r'<FileHandler (.+) \(INFO\)>', str(h))
             # 出力対象/占有ロックから外す
             self.logger.removeHandler(h)
@@ -43,11 +43,14 @@ class Logger():
 
         # ログ出力設定
         if self.output != 1:
+            # リポジトリのルートフォルダを指定
+            repos_root = os.path.join(os.path.dirname(__file__), '../../../')
+            log_folder = os.path.join(repos_root, 'log')
             # ログフォルダチェック。無ければ作成
-            if not os.path.exists('../../log'):
-                os.makedirs('../../log')
+            if not os.path.exists(log_folder):
+                os.makedirs(log_folder)
             # 出力先を設定
-            handler = logging.FileHandler(f'../../log/{self.filename}_{jst.date()}.log')
+            handler = logging.FileHandler(os.path.join(log_folder, f'{self.filename}_{jst.date()}.log'))
             # 出力レベルを設定
             handler.setLevel(logging.INFO)
             # フォーマットの設定
@@ -80,4 +83,3 @@ class Logger():
 
     def critical(self, message):
         self.logger.critical(message)
-
