@@ -217,7 +217,7 @@ class ResultOdds():
             fukusho = pd.DataFrame([['', ''] for _ in range(len(odds))], index = odds.index)
         # レースが中止となった場合
         else:
-            logger.info(f'{race_info[0]}の{babacodechange.check(race_info[1])}{race_info[3]}Rのレースは中止になりました')
+            logger.info(f'{race_info[0]}の{babacodechange.rakuten(race_info[1])}{race_info[3]}Rのレースは中止になりました')
             return
 
         # レース情報を頭数分用意する
@@ -228,7 +228,7 @@ class ResultOdds():
         write_df.columns = ['発走日', '競馬場コード', 'レース番号', '馬番', '単勝オッズ', '複勝オッズ下限', '複勝オッズ上限']
 
         # CSVに出力する
-        output.odds(write_df, f'nar_resultodds_{race_info[0][:7]}')
+        output.odds(write_df, f'nar_resultodds_{race_info[0][:6]}')
 
     def extract_info(self, race_url):
         '''レース関連URLの下18桁を分割して返す'''
