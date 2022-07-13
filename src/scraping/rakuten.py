@@ -4,7 +4,7 @@ import re
 import sys
 import time
 import traceback
-from common import logger, jst, output, soup, babacodechange
+from common import logger, jst, output, soup, babacodechange, line
 from datetime import datetime
 from tqdm import tqdm
 
@@ -22,14 +22,16 @@ class ResultOdds():
 
     def __init__(self, oldest_date = '20100601', latest_date = jst.yesterday()):
         logger.info('----------------------------')
-        logger.info('地方競馬過去レースオッズシステム起動')
+        logger.info('地方競馬過去オッズ取得システム起動')
+        line.send('地方競馬過去オッズ取得システム起動')
+        logger.info('初期処理開始')
         self.__latest_date = latest_date
         self.__oldest_date = oldest_date
         self.validation_check()
         self.__date = self.latest_date
         self.__url = URL()
-        self.main()
-        logger.info('地方競馬過去レースオッズシステム終了')
+        logger.info(f'取得対象最古日:{jst.change_format(self.oldest_date, "%Y%m%d", "%Y/%m/%d")}')
+        logger.info(f'取得対象最新日:{jst.change_format(self.latest_date, "%Y%m%d", "%Y/%m/%d")} で処理を行います')
 
     @property
     def latest_date(self): return self.__latest_date
@@ -96,8 +98,6 @@ class ResultOdds():
             self.oldest_date = tmp
 
         logger.info('日付のバリデーションチェック終了')
-        logger.info(f'取得対象最古日:{jst.change_format(self.oldest_date, "%Y%m%d", "%Y/%m/%d")}')
-        logger.info(f'取得対象最新日:{jst.change_format(self.latest_date, "%Y%m%d", "%Y/%m/%d")} で処理を行います')
 
     def main(self):
         '''主処理、各メソッドの呼び出し'''
@@ -114,9 +114,7 @@ class ResultOdds():
                 # 対象日に開催された競馬場URLの取得
                 baba_urls = self.get_kaisai()
             except Exception as e:
-                logger.error('競馬場URL取得処理でエラー')
-                logger.error(e)
-                logger.error(traceback.format_exc())
+                self.error_output('競馬場取得処理でエラー', e, traceback.format_exc())
                 exit()
 
             for baba_url in baba_urls:
@@ -125,9 +123,7 @@ class ResultOdds():
                     # 指定競馬場内での各レースURLの取得
                     race_urls = self.get_race_url(baba_url)
                 except Exception as e:
-                    logger.error('レースURL取得処理でエラー')
-                    logger.error(e)
-                    logger.error(traceback.format_exc())
+                    self.error_output('レースURL取得処理でエラー', e, traceback.format_exc())
                     exit()
 
                 for race_url in race_urls:
@@ -137,18 +133,14 @@ class ResultOdds():
                         # オッズテーブルの取得
                         odds_table = self.get_odds(race_url)
                     except Exception as e:
-                        logger.error('オッズテーブル取得処理でエラー')
-                        logger.error(e)
-                        logger.error(traceback.format_exc())
+                        self.error_output('オッズテーブル取得処理でエラー', e, traceback.format_exc())
                         exit()
 
                     try:
                         # テーブルデータの加工/CSV出力
                         self.record_odds(race_url, odds_table)
                     except Exception as e:
-                        logger.error('テーブルデータの処理でエラー')
-                        logger.error(e)
-                        logger.error(traceback.format_exc())
+                        self.error_output('テーブルデータの処理でエラー', e, traceback.format_exc())
                         exit()
 
                     time.sleep(3)
@@ -206,6 +198,9 @@ class ResultOdds():
     def record_odds(self, race_url, odds_table):
         '''レース/オッズ情報を加工する'''
 
+        # レースURLからレース情報を抽出する
+        race_info = self.extract_info(race_url)
+
         # 複勝が存在する場合
         if '複勝オッズ' in odds_table[0].columns:
             # オッズテーブルから必要なカラムだけ抜き出す
@@ -214,14 +209,16 @@ class ResultOdds():
             fukusho = odds['複勝オッズ'].str.split(' - ', expand = True)
             # 元のカラムは削除
             odds = odds.drop('複勝オッズ', axis=1)
-        else:
+        # 複勝オッズが存在しない場合
+        elif '単勝オッズ' in odds_table[0].columns:
             # オッズテーブルから必要なカラムだけ抜き出す
             odds = odds_table[0][['馬番', '単勝オッズ']]
             # 複勝オッズの箇所にNULLを挿入
             fukusho = pd.DataFrame([['', ''] for _ in range(len(odds))], index = odds.index)
-
-        # レースURLからレース情報を抽出する
-        race_info = self.extract_info(race_url)
+        # レースが中止となった場合
+        else:
+            logger.info(f'{race_info[0]}の{babacodechange.check(race_info[1])}{race_info[3]}Rのレースは中止になりました')
+            return
 
         # レース情報を頭数分用意する
         info = [[race_info[0], race_info[1], race_info[3]] for _ in range(len(odds))]
@@ -231,7 +228,7 @@ class ResultOdds():
         write_df.columns = ['発走日', '競馬場コード', 'レース番号', '馬番', '単勝オッズ', '複勝オッズ下限', '複勝オッズ上限']
 
         # CSVに出力する
-        output.odds(write_df, 'result')
+        output.odds(write_df, f'nar_resultodds_{race_info[0][:7]}')
 
     def extract_info(self, race_url):
         '''レース関連URLの下18桁を分割して返す'''
@@ -243,6 +240,21 @@ class ResultOdds():
         '''レース関連URLの下18桁を返す'''
         m = re.search(r'(\d{18}', race_url)
         return str(m.group(1))
+
+    def error_output(self, message, e, stacktrace):
+        '''エラー時のログ出力/LINE通知を行う
+
+        Args:
+            message(str) : エラーメッセージ
+            e(str) : エラー名
+            stacktrace(str) : スタックトレース
+        '''
+        logger.error(message)
+        logger.error(e)
+        logger.error(stacktrace)
+        line.send(message)
+        line.send(e)
+        line.send(stacktrace)
 
 class URL():
     '''楽天競馬の各ページのURL'''
@@ -276,7 +288,7 @@ if __name__ == '__main__':
     # プログレスバーを出すためコンソールには出力しない
     logger = logger.Logger(0)
 
-    # オッズ取得用クラス呼び出し
+    # 初期処理
     try:
         if len(sys.argv) >= 3:
             ro = ResultOdds(sys.argv[1], sys.argv[2])
@@ -285,5 +297,16 @@ if __name__ == '__main__':
         else:
             ro = ResultOdds()
     except Exception as e:
+        logger.error('初期処理でエラー')
         logger.error(e)
         logger.error(traceback.format_exc())
+        line.send('初期処理でエラー')
+        line.send(e)
+        line.send(traceback.format_exc())
+        raise
+
+    # 主処理
+    ro.main()
+
+    logger.info('地方競馬過去オッズ取得システム終了')
+    line.send('地方競馬過去オッズ取得システム終了')

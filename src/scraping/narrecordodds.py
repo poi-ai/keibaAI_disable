@@ -204,7 +204,7 @@ class Nar():
     def record_odds(self):
         '''取得したオッズをCSV/Google Spread Sheetに出力する'''
         # CSVに出力する
-        output.odds(self.write_data, 'realtime')
+        output.odds(self.write_data, f'nar_resultodds_{jst.year()}{jst.month()}')
         # TODO Google Spread Sheetに出力
         # writesheet.write_spread_sheet(self.write_data, jst.month().zfill(2))
 
