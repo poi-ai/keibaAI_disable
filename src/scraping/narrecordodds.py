@@ -147,15 +147,27 @@ class Nar():
                     self.next_get_time = jst.time_min(self.next_get_time, race.race_time - datetime.timedelta(seconds = 720))
                 # 発走12分前から1分以内の場合
                 elif time_left >= 59:
-                    race.record_flg = '1'
                     self.next_get_time = NEXT_MINITURES
                 # 発走1分前から発走後20分以内の場合
                 elif time_left > -1200:
                     self.next_get_time = jst.time_min(self.next_get_time, race.race_time + datetime.timedelta(seconds = 1200))
                 # 発走後20分以降の場合
                 else:
-                    race.record_flg = '2'
                     self.next_get_time = NEXT_MINITURES
+
+        # 待機時間後に取得対象となるレースの抽出
+        for race in self.race_info:
+            # 最終出力待ちか記録済以外の場合
+            if race.record_flg != '4' and race.record_flg != '-1':
+                # 次の記録時間とレース発走の時間差
+                diff_time = int((race.race_time - self.next_get_time).total_seconds())
+
+                # 発走12分前から1分以内の場合
+                if 720 >= diff_time >= 59:
+                    race.record_flg = '1'
+                # 発走後20分以降の場合
+                elif -1200 >= diff_time:
+                    race.record_flg = '2'
 
         # 次の記録時間までの時間(秒)
         time_left = int((self.next_get_time - jst.now()).total_seconds())

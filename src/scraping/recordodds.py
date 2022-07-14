@@ -220,19 +220,21 @@ class RecordOdds():
         '''取得したオッズデータをCSVに書き出す'''
         # 記録データが格納されていてx分40秒を過ぎていなければCSV出力
         if int(jst.second()) <= 40:
-            if len(self.jra.write_data) != 0:
-                try:
-                    self.jra.record_odds()
-                except Exception as e:
-                    self.error_output('中央_CSV出力処理でエラー', e, traceback.format_exc())
-                    self.jra_flg = False
+            if self.jra_flg:
+                if len(self.jra.write_data) != 0:
+                    try:
+                        self.jra.record_odds()
+                    except Exception as e:
+                        self.error_output('中央_CSV出力処理でエラー', e, traceback.format_exc())
+                        self.jra_flg = False
 
-            if len(self.nar.write_data) != 0:
-                try:
-                    self.nar.record_odds()
-                except Exception as e:
-                    self.error_output('地方_CSV出力処理でエラー', e, traceback.format_exc())
-                    self.nar_flg = False
+            if self.nar_flg:
+                if len(self.nar.write_data) != 0:
+                    try:
+                        self.nar.record_odds()
+                    except Exception as e:
+                        self.error_output('地方_CSV出力処理でエラー', e, traceback.format_exc())
+                        self.nar_flg = False
 
     def error_output(self, message, e, stacktrace):
         '''エラー時のログ出力/LINE通知を行う
