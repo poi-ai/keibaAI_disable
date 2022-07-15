@@ -122,6 +122,8 @@ class ResultOdds():
                 try:
                     # 指定競馬場内での各レースURLの取得
                     race_urls = self.get_race_url(baba_url)
+                    # レースURLが存在しなければスキップ
+                    if race_urls == None: continue
                 except Exception as e:
                     self.error_output('レースURL取得処理でエラー', e, traceback.format_exc())
                     exit()
@@ -180,12 +182,16 @@ class ResultOdds():
         '''指定した競馬場(日付)に開催されるレースのURLを取得する'''
         result = soup.get_soup(baba_url)
         if result == -1:
-            logger.error(f'レースURLの取得に失敗しました')
+            logger.error('レースURLの取得に失敗しました')
             raise
 
         race_number = result.find_all('ul', class_ = 'raceNumber')
 
-        return [link.get('href') for link in race_number[0].find_all('a')]
+        if race_number != []:
+            return [link.get('href') for link in race_number[0].find_all('a')]
+        else:
+            logger.info('競馬場へのURLリンクはありますがレースが存在しません')
+            return None
 
     def get_odds(self, race_url):
         '''レースURLから単勝・複勝オッズのテーブルデータを取得する'''
