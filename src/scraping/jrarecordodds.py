@@ -90,7 +90,7 @@ class Jra():
         self.__write_data = write_data
 
     @kaisai.setter
-    def write_data(self, kaisai):
+    def kaisai(self, kaisai):
         self.__kaisai = kaisai
 
     def do_action(self, cname, sleep_time = 0, retry_count = 3):
@@ -363,7 +363,7 @@ class Jra():
             if int(jst.second()) > 40:
                 break
 
-    def get_odds(self, race):
+    def get_odds(self, race, count = 1):
         '''(単勝・複勝)オッズの取得・記録を行う'''
         # オッズのテーブルを取得
         soup = self.do_action(race.race_param)
@@ -372,11 +372,23 @@ class Jra():
             raise
         odds_table = pd_read.html(str(soup))[0]
 
+        try:
+            # 馬番・単勝オッズのカラムのみ抽出
+            odds_data = odds_table.loc[:, ['馬番', '単勝']]
+            # 複勝オッズのカラムを下限と上限に別々のカラムに分割(レースによってカラム名が変わるため位置で指定)
+            fukusho = odds_table[odds_table.columns[4]].str.split('-', expand = True)
+        except:
+            if count < 5:
+                logger.warning(f'オッズ取得処理で正常なデータが取得できませんでした。({count}回目)')
+                logger.warning('再度オッズ取得処理を実行します。')
+                self.get_odds(race, count + 1)
+                return
+            else:
+                logger.error('オッズ取得処理で5度正常なデータが取得できませんでした')
+                raise
+
         logger.info(f'{babacodechange.jra(race.baba_code)}{race.race_no}Rの{str(round((race.race_time - jst.now()).total_seconds() / 60)) + "分前" if race.record_flg == "1" else "最終"}オッズ取得')
-        # 馬番・単勝オッズのカラムのみ抽出
-        odds_data = odds_table.loc[:, ['馬番', '単勝']]
-        # 複勝オッズのカラムを下限と上限に別々のカラムに分割(レースによってカラム名が変わるため位置で指定)
-        fukusho = odds_table[odds_table.columns[4]].str.split('-', expand = True)
+
         # 最左列にレースIDのカラム追加
         odds_data.insert(0, 'race_id', jst.date() + race.baba_code.zfill(2) + race.race_no.zfill(2))
         # 最右列に現在時刻(yyyyMMddHHMMSS)・発走までの残り時間(秒)・JRAフラグの追加
