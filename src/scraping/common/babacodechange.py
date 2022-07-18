@@ -3,7 +3,7 @@ import logger as lg
 # エラー回避用ログインスタンス作成
 logger = lg.Logger()
 
-def netkeiba():
+def netkeiba(str):
     '''netkeiba.comのDBで使用されている競馬場コードを変換するメソッド
        ばんえい競馬は「競馬場名+(ば)」、中央と地方両方行われていた競馬場では、
        地方を「競馬場名+(地)」で表記

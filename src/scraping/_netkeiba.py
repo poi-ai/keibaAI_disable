@@ -5,7 +5,7 @@ import json
 import sys
 import time
 import traceback
-from common import logger, jst, output, soup, line
+from common import babacodechange, logger, jst, output, soup, line
 from datetime import datetime
 from tqdm import tqdm
 
@@ -21,8 +21,7 @@ class ResultOdds():
         url(URL) : netkeibaサイト内のURL一覧
     '''
 
-    #def __init__(self, oldest_date = '20070728', latest_date = jst.yesterday()):
-    def __init__(self, oldest_date = jst.yesterday(), latest_date = jst.yesterday()):
+    def __init__(self, oldest_date = '20070728', latest_date = jst.yesterday()):
         logger.info('----------------------------')
         logger.info('中央競馬過去オッズ取得システム起動')
         line.send('中央競馬過去オッズ取得システム起動')
@@ -33,6 +32,8 @@ class ResultOdds():
         self.__url = URL()
         logger.info(f'取得対象最古日:{jst.change_format(self.oldest_date, "%Y%m%d", "%Y/%m/%d")}')
         logger.info(f'取得対象最新日:{jst.change_format(self.latest_date, "%Y%m%d", "%Y/%m/%d")} で処理を行います')
+        print(f'取得対象最古日:{jst.change_format(self.oldest_date, "%Y%m%d", "%Y/%m/%d")}')
+        print(f'取得対象最新日:{jst.change_format(self.latest_date, "%Y%m%d", "%Y/%m/%d")} で処理を行います')
 
     @property
     def latest_date(self): return self.__latest_date
@@ -102,6 +103,9 @@ class ResultOdds():
         # 対象の日付リストの取得
         dates = self.get_dates()
 
+        logger.info(f'取得対象日数は{len(dates)}です')
+        print(f'取得対象日数は{len(dates)}です')
+
         # レースのある日を1日ずつ遡って取得処理を行う
         for date in tqdm(dates):
 
@@ -143,7 +147,10 @@ class ResultOdds():
         month = self.latest_date[:6]
 
         # 対象最古日より前の月になるまでループ
-        while month >= self.latest_date[:6]:
+        while month >= self.oldest_date[:6]:
+            logger.info(f'{jst.change_format(month, "%Y%m", "%Y/%m")}のレース開催日を取得します')
+            print(f'{jst.change_format(month, "%Y%m", "%Y/%m")}のレース開催日を取得します')
+
             # HTMLタグ取得
             html = soup.get_soup(f'{self.url.RESULTS}{month}01')
 
@@ -180,12 +187,14 @@ class ResultOdds():
 
         # レースへのリンクをすべて取得
         races = re.finditer(r'/race/(\d+)/', str(race_frame))
-       
+
         # リストに変換して返す
         return [m.groups()[0] for m in races]
 
     def get_odds(self, race_id):
         '''APIから単勝・複勝オッズのデータ(JSON)を取得する'''
+
+        logger.info(f'{babacodechange.netkeiba(race_id[4:6])}{race_id[10:]}Rのオッズを取得')
 
         # APIからJSON取得
         html = soup.get_soup(f'{self.url.TANPUKU}{race_id}')
