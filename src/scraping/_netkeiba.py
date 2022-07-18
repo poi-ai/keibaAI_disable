@@ -103,8 +103,8 @@ class ResultOdds():
         # 対象の日付リストの取得
         dates = self.get_dates()
 
-        logger.info(f'取得対象日数は{len(dates)}です')
-        print(f'取得対象日数は{len(dates)}です')
+        logger.info(f'取得対象日数は{len(dates)}日です')
+        print(f'取得対象日数は{len(dates)}日です')
 
         # レースのある日を1日ずつ遡って取得処理を行う
         for date in tqdm(dates):
@@ -120,7 +120,6 @@ class ResultOdds():
 
             for race_id in race_ids:
 
-                logger.info(f'{race_id[10:]}Rのオッズデータを取得します')
                 try:
                     # オッズテーブルの取得
                     odds_table = self.get_odds(race_id)
@@ -194,7 +193,7 @@ class ResultOdds():
     def get_odds(self, race_id):
         '''APIから単勝・複勝オッズのデータ(JSON)を取得する'''
 
-        logger.info(f'{babacodechange.netkeiba(race_id[4:6])}{race_id[10:]}Rのオッズを取得')
+        logger.info(f'{babacodechange.netkeiba(race_id[4:6])}{race_id[10:]}Rのオッズデータを取得します')
 
         # APIからJSON取得
         html = soup.get_soup(f'{self.url.TANPUKU}{race_id}')
