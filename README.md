@@ -10,10 +10,10 @@
 |項目|
 | :--- |
 | 1. [概要](#anchor1) |
+| 2. [開発環境](#anchor2)|
+| 3. [初期設定](#anchor3)|
 
 <!--
-| 2. [開発環境](#anchor2)|
-| 3. [](#anchor3)|
 | 4. [](#anchor4)|
 | 5. [](#anchor5)| -->
 
@@ -27,18 +27,35 @@
 
 協力者募集中です。
 
-<!-- <a id="anchor2"></a>
+<a id="anchor2"></a>
 ## 2. 開発環境
-```Python3.0以上```
 
+### 使用言語
+Python => 3.0
+
+### 使用ライブラリ
+`requirements.txt`に記載
+
+### 動作確認環境
+* Windows 10 [Core i7-1065G7, 16GB]
+* CentOS 7   [さくらのVPS、1GBプラン]
+
+<a id="anchor3"></a>
+## 3. 初期設定
 #### clone
-`$ git clone https://github.com/poi-ai/keibaAI.git `
+```
+$ git clone https://github.com/poi-ai/keibaAI.git
+```
 
 #### 外部ライブラリのインストール
-`$ pip install -r requirements.txt`
+```
+$ pip install -r requirements.txt
+```
 
 #### 設定ファイル
-wikiを参照してください。
+coming soon...
+
+<!--
 
 ## 3. データ
 モデル作成に使用する大元となるデータは、netkeibaからスクレイピングを用いて取得しております。
