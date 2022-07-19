@@ -123,6 +123,11 @@ class ResultOdds():
                 try:
                     # オッズテーブルの取得
                     odds_table = self.get_odds(race_id)
+
+                    # DataFrame型(=正常レスポンス)でない場合は何もしない
+                    if type(odds_table) == bool:
+                        continue
+
                 except Exception as e:
                     self.error_output('オッズテーブル取得処理でエラー', e, traceback.format_exc())
                     exit()
@@ -199,12 +204,20 @@ class ResultOdds():
         html = soup.get_soup(f'{self.url.TANPUKU}{race_id}')
         json_data = json.loads(html.text)
 
-        # JSONから必要なカラムを切り出し
-        df = pd.concat([pd.DataFrame(json_data['data']['odds']['1']).T, pd.DataFrame(json_data['data']['odds']['2']).T], axis = 1)
-        df = df.iloc[:,[0, 3, 4]]
-        df.columns = ['単勝', '複勝下限', '複勝上限']
+        # レスポンスが正しく返ってきたかのチェック
+        if json_data['reason'] == '':
+            # JSONから必要なカラムを切り出し
+            df = pd.concat([pd.DataFrame(json_data['data']['odds']['1']).T, pd.DataFrame(json_data['data']['odds']['2']).T], axis = 1)
+            df = df.iloc[:,[0, 3, 4]]
+            df.columns = ['単勝', '複勝下限', '複勝上限']
 
-        return df
+            return df
+        elif json_data['reason'] == 'result odds empty':
+            logger.warning('オッズ取得処理にて空のレスポンスを取得')
+            return False
+        else:
+            logger.warning('オッズ取得処理にて空レスポンス以外のエラー')
+            return False
 
     def record_odds(self, date, race_id, odds):
         '''オッズデータにレース情報を付加して出力する'''
