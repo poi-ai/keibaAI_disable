@@ -20,6 +20,7 @@ class Logger():
         self.logger = logging.getLogger()
         self.output = output
         self.filename = Path(inspect.stack()[1].filename).stem
+        self.today = jst.date()
         self.set()
 
     def set(self):
@@ -69,17 +70,29 @@ class Logger():
             # ハンドラの適用
             self.logger.addHandler(handler)
 
+    def date_check(self):
+        '''日付変更チェック'''
+        if self.today != jst.date():
+            self.today = jst.date()
+            # PG起動中に日付を超えた場合はログ名を設定しなおす
+            self.set()
+
     def debug(self, message):
+        self.date_check()
         self.logger.debug(message)
 
     def info(self, message):
+        self.date_check()
         self.logger.info(message)
 
     def warning(self, message):
+        self.date_check()
         self.logger.warning(message)
 
     def error(self, message):
+        self.date_check()
         self.logger.error(message)
 
     def critical(self, message):
+        self.date_check()
         self.logger.critical(message)

@@ -1,6 +1,6 @@
 import os
 
-def odds(df, file_name):
+def csv(df, file_name):
     '''CSVにデータファイルを出力する
 
     Args:

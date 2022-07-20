@@ -19,9 +19,11 @@ class ResultOdds():
                           デフォルト : 20070728(閲覧可能な最古の日付)
         date(list<str>) : 取得対象の日付(yyyyMMdd)
         url(URL) : netkeibaサイト内のURL一覧
+        output_type(str) : 出力ファイルを分割
+                           m : 月ごと(デフォルト)、y : 年ごと、a : 全ファイルまとめて
     '''
 
-    def __init__(self, oldest_date = '20070728', latest_date = jst.yesterday()):
+    def __init__(self, oldest_date = '20070728', latest_date = jst.yesterday(), output_type = 'm'):
         logger.info('----------------------------')
         logger.info('中央競馬過去オッズ取得システム起動')
         line.send('中央競馬過去オッズ取得システム起動')
@@ -30,6 +32,7 @@ class ResultOdds():
         self.__oldest_date = oldest_date
         self.validation_check()
         self.__url = URL()
+        self.__output_type = output_type
         logger.info(f'取得対象最古日:{jst.change_format(self.oldest_date, "%Y%m%d", "%Y/%m/%d")}')
         logger.info(f'取得対象最新日:{jst.change_format(self.latest_date, "%Y%m%d", "%Y/%m/%d")} で処理を行います')
         print(f'取得対象最古日:{jst.change_format(self.oldest_date, "%Y%m%d", "%Y/%m/%d")}')
@@ -41,6 +44,8 @@ class ResultOdds():
     def oldest_date(self): return self.__oldest_date
     @property
     def url(self): return self.__url
+    @property
+    def output_type(self): return self.__output_type
     @latest_date.setter
     def latest_date(self, latest_date): self.__latest_date = latest_date
     @oldest_date.setter
@@ -229,8 +234,16 @@ class ResultOdds():
 
         write_df.columns = ['発走日', '競馬場コード', 'レース番号', '馬番', '単勝オッズ', '複勝オッズ下限', '複勝オッズ上限']
 
-        # CSVに出力する
-        output.odds(write_df, f'jra_resultodds_{date[:6]}')
+        # CSVに出力
+        if self.output_type == 'a':
+            # 一つのファイルに出力
+            output.csv(write_df, 'jra_resultodds')
+        elif self.output_type == 'y':
+            # 年ごとにファイルを分割
+            output.csv(write_df, f'jra_resultodds_{date[:4]}')
+        else:
+            # 月ごとにファイルを分割
+            output.csv(write_df, f'jra_resultodds_{date[:6]}')
 
     def error_output(self, message, e, stacktrace):
         '''エラー時のログ出力/LINE通知を行う
