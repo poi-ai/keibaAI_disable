@@ -211,8 +211,13 @@ class ResultOdds():
 
         # レスポンスが正しく返ってきたかのチェック
         if json_data['reason'] == '':
-            # JSONから必要なカラムを切り出し
-            df = pd.concat([pd.DataFrame(json_data['data']['odds']['1']).T, pd.DataFrame(json_data['data']['odds']['2']).T], axis = 1)
+            try:
+                # JSONから必要なカラムを切り出し
+                df = pd.concat([pd.DataFrame(json_data['data']['odds']['1']).T, pd.DataFrame(json_data['data']['odds']['2']).T], axis = 1)
+            except:
+                # netkeiba側のJSONがおかしい場合があるのでそれのリカバリ処理
+                logger.warning('オッズ取得処理にて正常でないJSONのレスポンスを取得')
+                return False
             df = df.iloc[:,[0, 3, 4]]
             df.columns = ['単勝', '複勝下限', '複勝上限']
 
