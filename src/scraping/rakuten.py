@@ -226,8 +226,13 @@ class ResultOdds():
             odds = odds_table[0][['馬番', '単勝オッズ']]
             # 複勝オッズの箇所にNULLを挿入
             fukusho = pd.DataFrame([['', ''] for _ in range(len(odds))], index = odds.index)
-        # レースが中止となった場合
+        # 馬券販売前にレースが中止となった場合
         else:
+            logger.info(f'{race_info[0]}の{babacodechange.rakuten(race_info[1])}{race_info[3]}Rのレースは中止になりました')
+            return
+
+        # 馬券販売後(直前で)レースが中止となった場合
+        if odds['単勝オッズ'][0] == 0.0 and odds['単勝オッズ'][1] == 0.0:
             logger.info(f'{race_info[0]}の{babacodechange.rakuten(race_info[1])}{race_info[3]}Rのレースは中止になりました')
             return
 
