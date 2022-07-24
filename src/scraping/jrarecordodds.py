@@ -401,7 +401,7 @@ class Jra():
     def record_odds(self):
         '''取得したオッズをCSV/Google Spread Sheetに出力する'''
         # CSVに出力する
-        output.csv(self.write_data, f'jra_resultodds_{jst.year()}{jst.month()}')
+        output.csv(self.write_data, f'jra_resultodds_{jst.year()}{jst.zmonth()}')
         # TODO Google Spread Sheetに出力
         # writesheet.write_spread_sheet(self.write_data, jst.month().zfill(2))
 

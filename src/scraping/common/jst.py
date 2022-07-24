@@ -21,9 +21,17 @@ def month():
     '''現在の月(JST)をstr型[m(0埋めなし)]で返す'''
     return str(now().month)
 
+def zmonth():
+    '''現在の月(JST)をstr型[mm(0埋め)]で返す'''
+    return str(now().month).zfill(2)
+
 def day():
     '''現在の日(JST)をstr型[d(0埋めなし)]で返す'''
     return str(now().day)
+
+def zday():
+    '''現在の日(JST)をstr型[dd(0埋め)]で返す'''
+    return str(now().day).zfill(2)
 
 def hour():
     '''現在の時間(JST)をstr型[H(0埋めなし)]で返す'''
