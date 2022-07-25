@@ -9,8 +9,8 @@ from common import babacodechange, logger, jst, output, soup, line
 from datetime import datetime
 from tqdm import tqdm
 
-class ResultOdds():
-    '''netkeibaのサイトから地方競馬の確定オッズを取得する
+class SearchRace():
+    '''netkeibaのサイトから地方競馬のレース情報を取得する
 
     Instance Parameter:
         latest_date(str) : 取得対象の最も新しい日付(yyyyMMdd)
@@ -24,10 +24,6 @@ class ResultOdds():
     '''
 
     def __init__(self, oldest_date = '20070728', latest_date = jst.yesterday(), output_type = 'm'):
-        logger.info('----------------------------')
-        logger.info('中央競馬過去オッズ取得システム起動')
-        line.send('中央競馬過去オッズ取得システム起動')
-        logger.info('初期処理開始')
         self.__latest_date = latest_date
         self.__oldest_date = oldest_date
         self.validation_check()
@@ -102,50 +98,6 @@ class ResultOdds():
 
         logger.info('日付のバリデーションチェック終了')
 
-    def main(self):
-        '''主処理、各メソッドの呼び出し'''
-
-        # 対象の日付リストの取得
-        dates = self.get_dates()
-
-        logger.info(f'取得対象日数は{len(dates)}日です')
-        print(f'取得対象日数は{len(dates)}日です')
-
-        # レースのある日を1日ずつ遡って取得処理を行う
-        for date in tqdm(dates):
-
-            logger.info(f'{jst.change_format(date, "%Y%m%d", "%Y/%m/%d")}のオッズデータの取得を開始します')
-
-            try:
-                # 指定日に行われる全レースのレースIDの取得
-                race_ids = self.get_race_url(date)
-            except Exception as e:
-                self.error_output('レースURL取得処理でエラー', e, traceback.format_exc())
-                exit()
-
-            for race_id in race_ids:
-
-                try:
-                    # オッズテーブルの取得
-                    odds_table = self.get_odds(race_id)
-
-                    # DataFrame型(=正常レスポンス)でない場合は何もしない
-                    if type(odds_table) == bool:
-                        continue
-
-                except Exception as e:
-                    self.error_output('オッズテーブル取得処理でエラー', e, traceback.format_exc())
-                    exit()
-
-                try:
-                    # テーブルデータの加工/CSV出力
-                    self.record_odds(date, race_id, odds_table)
-                except Exception as e:
-                    self.error_output('テーブルデータの処理でエラー', e, traceback.format_exc())
-                    exit()
-
-                time.sleep(3)
-
     def get_dates(self):
         '''取得対象日の取得を行う'''
 
@@ -200,6 +152,192 @@ class ResultOdds():
         # リストに変換して返す
         return [m.groups()[0] for m in races]
 
+    def error_output(self, message, e, stacktrace):
+        '''エラー時のログ出力/LINE通知を行う
+
+        Args:
+            message(str) : エラーメッセージ
+            e(str) : エラー名
+            stacktrace(str) : スタックトレース
+        '''
+        logger.error(message)
+        logger.error(e)
+        logger.error(stacktrace)
+        line.send(message)
+        line.send(e)
+        line.send(stacktrace)
+
+class ResultRace(SearchRace):
+    '''netkeibaのサイトから過去の中央競馬のレース結果データを取得する
+
+    '''
+
+    def __init__(self, argv0 = None, argv1 = None, argv2 = None):
+        logger.info('----------------------------')
+        logger.info('中央競馬レース結果取得システム起動')
+        line.send('中央競馬レース結果取得システム起動')
+        logger.info('初期処理開始')
+        super().__init__(argv0, argv1, argv2)
+        self.main()
+        logger.info('中央競馬レース結果取得システム終了')
+        line.send('中央競馬レース結果取得システム終了')
+
+    def main(self):
+        '''主処理、各メソッドの呼び出し'''
+
+        # 対象の日付リストの取得
+        dates = self.get_dates()
+
+        logger.info(f'取得対象日数は{len(dates)}日です')
+        print(f'取得対象日数は{len(dates)}日です')
+
+        # レースのある日を1日ずつ遡って取得処理を行う
+        for date in tqdm(dates):
+
+            logger.info(f'{jst.change_format(date, "%Y%m%d", "%Y/%m/%d")}のレース結果の取得を開始します')
+
+            try:
+                # 指定日に行われる全レースのレースIDの取得
+                race_ids = self.get_race_url(date)
+            except Exception as e:
+                self.error_output('レースURL取得処理でエラー', e, traceback.format_exc())
+                exit()
+
+            for race_id in race_ids:
+
+                try:
+                    # レース情報/レース結果テーブルの取得
+                    result = self.get_result(race_id)
+
+                    # DataFrame型(=正常レスポンス)でない場合は何もしない
+                    if type(result) == bool:
+                        continue
+
+                except Exception as e:
+                    self.error_output('レース結果取得処理でエラー', e, traceback.format_exc())
+                    exit()
+
+                try:
+                    # レースデータの加工/CSV出力
+                    self.record_result(date, result)
+                except Exception as e:
+                    self.error_output('テーブルデータの加工/出力処理でエラー', e, traceback.format_exc())
+                    exit()
+
+                time.sleep(3)
+
+    def get_result(self, race_id):
+        '''レース番号からレース情報・結果をスクレイピング
+
+        Args:
+            race_id(str):レース番号。10桁(西暦+開催回+開催日+競馬場コード)
+
+        Returns:
+            df(pandas.DataFrame):レース情報と各馬の情報・結果をもったデータ
+
+        '''
+
+        logger.info(f'{babacodechange.netkeiba(race_id[4:6])}{race_id[10:]}Rのレース結果を取得します')
+
+        # レース結果のURLからHTMLデータをスクレイピング
+        result_url = f'{URL.RACE}{race_id}'
+
+        print(race_id)
+        print(result_url)
+
+        df = pd.read_html(result_url)[0]
+        #html = soup.get_soup(result_url)
+
+        print(df)
+        print('-----------')
+        #print(html)
+        exit()
+
+        # TODO データ加工
+
+        # return df
+
+    def record_result(self, date, race_id, result):
+        '''レース結果にレース情報を付加して出力する'''
+
+        # レース情報を頭数分用意する
+        info = [[date, race_id[4:6], race_id[10:]] for _ in range(len(result))]
+
+        write_df = pd.concat([pd.DataFrame(info, index = result.index), pd.DataFrame(result.index, index = result.index), result], axis=1)
+
+        write_df.columns = ['発走日', '競馬場コード', 'レース番号', '馬番', '単勝オッズ', '複勝オッズ下限', '複勝オッズ上限']
+
+        # CSVに出力
+        if self.output_type == 'a':
+            # 一つのファイルに出力
+            output.csv(write_df, 'jra_raceresult')
+        elif self.output_type == 'y':
+            # 年ごとにファイルを分割
+            output.csv(write_df, f'jra_raceresult_{date[:4]}')
+        else:
+            # 月ごとにファイルを分割
+            output.csv(write_df, f'jra_raceresult{date[:6]}')
+
+class ResultOdds(SearchRace):
+    '''netkeibaのサイトから中央競馬の最終オッズを取得する
+
+    '''
+
+    def __init__(self, argv0 = None, argv1 = None, argv2 = None):
+        logger.info('----------------------------')
+        logger.info('中央競馬過去オッズ取得システム起動')
+        line.send('中央競馬過去オッズ取得システム起動')
+        logger.info('初期処理開始')
+        super().__init__(argv0, argv1, argv2)
+        self.main()
+        logger.info('中央競馬過去オッズ取得システム終了')
+        line.send('中央競馬過去オッズ取得システム終了')
+
+
+    def main(self):
+        '''主処理、各メソッドの呼び出し'''
+
+        # 対象の日付リストの取得
+        dates = self.get_dates()
+
+        logger.info(f'取得対象日数は{len(dates)}日です')
+        print(f'取得対象日数は{len(dates)}日です')
+
+        # レースのある日を1日ずつ遡って取得処理を行う
+        for date in tqdm(dates):
+
+            logger.info(f'{jst.change_format(date, "%Y%m%d", "%Y/%m/%d")}のオッズデータの取得を開始します')
+
+            try:
+                # 指定日に行われる全レースのレースIDの取得
+                race_ids = self.get_race_url(date)
+            except Exception as e:
+                self.error_output('レースURL取得処理でエラー', e, traceback.format_exc())
+                exit()
+
+            for race_id in race_ids:
+
+                try:
+                    # オッズテーブルの取得
+                    odds_table = self.get_odds(race_id)
+
+                    # DataFrame型(=正常レスポンス)でない場合は何もしない
+                    if type(odds_table) == bool:
+                        continue
+
+                except Exception as e:
+                    self.error_output('オッズテーブル取得処理でエラー', e, traceback.format_exc())
+                    exit()
+
+                try:
+                    # テーブルデータの加工/CSV出力
+                    self.record_odds(date, race_id, odds_table)
+                except Exception as e:
+                    self.error_output('テーブルデータの処理でエラー', e, traceback.format_exc())
+                    exit()
+
+                time.sleep(3)
+
     def get_odds(self, race_id):
         '''APIから単勝・複勝オッズのデータ(JSON)を取得する'''
 
@@ -250,21 +388,6 @@ class ResultOdds():
             # 月ごとにファイルを分割
             output.csv(write_df, f'jra_resultodds_{date[:6]}')
 
-    def error_output(self, message, e, stacktrace):
-        '''エラー時のログ出力/LINE通知を行う
-
-        Args:
-            message(str) : エラーメッセージ
-            e(str) : エラー名
-            stacktrace(str) : スタックトレース
-        '''
-        logger.error(message)
-        logger.error(e)
-        logger.error(stacktrace)
-        line.send(message)
-        line.send(e)
-        line.send(stacktrace)
-
 class URL():
     '''netkeibaの各ページのURL'''
     # レースリンク一覧
@@ -281,7 +404,9 @@ if __name__ == '__main__':
 
     # 初期処理
     try:
-        if len(sys.argv) >= 3:
+        if len(sys.argv) >= 4:
+            ro = ResultOdds(sys.argv[1], sys.argv[2], sys.argv[3])
+        elif len(sys.argv) >= 3:
             ro = ResultOdds(sys.argv[1], sys.argv[2])
         elif len(sys.argv) == 2:
             ro = ResultOdds(sys.argv[1])
@@ -295,9 +420,3 @@ if __name__ == '__main__':
         line.send(e)
         line.send(traceback.format_exc())
         raise
-
-    # 主処理
-    ro.main()
-
-    logger.info('中央競馬過去オッズ取得システム終了')
-    line.send('中央競馬過去オッズ取得システム終了')
