@@ -385,6 +385,12 @@ class Jra():
                 return
             else:
                 logger.error('オッズ取得処理で5度正常なデータが取得できませんでした')
+                logger.info('-----------------')
+                logger.info(str(soup))
+                logger.info('-----------------')
+                logger.info(odds_table)
+                logger.info('-----------------')
+                logger
                 raise
 
         logger.info(f'{babacodechange.jra(race.baba_code)}{race.race_no}Rの{str(round((race.race_time - jst.now()).total_seconds() / 60)) + "分前" if race.record_flg == "1" else "最終"}オッズ取得')
