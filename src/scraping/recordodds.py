@@ -158,17 +158,28 @@ class RecordOdds():
         # どちらか一方の待機時間が0の場合はもう一方の待機時間に合わせる
         if jra_wait_time == 0 and nar_wait_time != 0:
             time_left = nar_wait_time
+            # NARの取得対象レースのフラグ切り替え
+            self.nar.get_target_race(self.nar.next_get_time)
         elif jra_wait_time != 0 and nar_wait_time == 0:
             time_left = jra_wait_time
-        # そうでない場合はより近い方の待機時間に合わせる
+            # JRAの取得対象レースのフラグ切り替え
+            self.nar.get_target_race(self.jra.next_get_time)
         else:
-            time_left = min(jra_wait_time, nar_wait_time)
+            # より近い方の待機時間に合わせる
+            if jra_wait_time > nar_wait_time:
+                time_left = nar_wait_time
+                self.jra.get_target_race(self.nar.next_get_time)
+                self.nar.get_target_race(self.nar.next_get_time)
+            else:
+                time_left = jra_wait_time
+                self.jra.get_target_race(self.jra.next_get_time)
+                self.nar.get_target_race(self.jra.next_get_time)
 
         # どちらも更新されなかった場合(リカバリ処理)
         if time_left == 99999999:
             logger.warning('取得処理がどこかおかしいかも')
             logger.warning('とりあえず10分待機します')
-            time_left = 661
+            time_left = 601
 
         logger.info(f'次の記録時間まで{time_left}秒')
 
@@ -199,6 +210,8 @@ class RecordOdds():
             except Exception as e:
                 self.error_output('地方_暫定オッズ取得処理でエラー', e, traceback.format_exc())
                 self.nar_flg = False
+
+        time.sleep(2)
 
         if self.jra_flg:
             try:

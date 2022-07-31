@@ -283,20 +283,6 @@ class Jra():
                 else:
                     self.next_get_time = NEXT_MINITURES
 
-        # 待機時間後に取得対象となるレースの抽出
-        for race in self.race_info:
-            # 最終出力待ちか記録済以外の場合
-            if race.record_flg != '4' and race.record_flg != '-1':
-                # 次の記録時間とレース発走の時間差
-                diff_time = int((race.race_time - self.next_get_time).total_seconds())
-
-                # 発走12分前から1分以内の場合
-                if 720 >= diff_time >= 59:
-                    race.record_flg = '1'
-                # 発走後20分以降の場合
-                elif -1200 >= diff_time:
-                    race.record_flg = '2'
-
         # 次の記録時間までの時間(秒)
         time_left = int((self.next_get_time - jst.now()).total_seconds())
 
@@ -307,6 +293,9 @@ class Jra():
         if called:
             return time_left
         else:
+            # 取得対象レースを抽出
+            self.get_target_race(self.next_get_time)
+
             logger.info(f'次の記録時間まで{time_left}秒')
 
             # 11分以上なら10分後に発走時刻再チェック
@@ -318,6 +307,22 @@ class Jra():
                 return True
             else:
                 return True
+
+    def get_target_race(self, get_time):
+        '''待機時間後に取得対象となるレースを抽出'''
+
+        for race in self.race_info:
+            # 最終出力待ちか記録済以外の場合
+            if race.record_flg != '4' and race.record_flg != '-1':
+                # 次の記録時間とレース発走の時間差
+                diff_time = int((race.race_time - get_time).total_seconds())
+
+                # 発走12分前から1分以内の場合
+                if 720 >= diff_time >= 59:
+                    race.record_flg = '1'
+                # 発走後20分以降の場合
+                elif -1200 >= diff_time:
+                    race.record_flg = '2'
 
     def continue_check(self):
         '''処理を続ける(=全レース記録済みでない)かのチェックを行う'''

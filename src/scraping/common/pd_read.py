@@ -1,7 +1,10 @@
-import logger
+import logger as lg
 import pandas as pd
 import time
 import traceback
+
+# エラー回避用ログインスタンス作成
+logger = lg.Logger()
 
 def html(URL, sleep_time = 0, retry_count = 3):
     '''テーブル取得のリトライ処理
