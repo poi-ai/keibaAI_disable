@@ -11,7 +11,6 @@ from tqdm import tqdm
 
 class SearchRace():
     '''netkeibaのサイトから地方競馬のレース情報を取得する
-
     Instance Parameter:
         latest_date(str) : 取得対象の最も新しい日付(yyyyMMdd)
                           デフォルト : システム稼働日前日
@@ -154,7 +153,6 @@ class SearchRace():
 
     def error_output(self, message, e, stacktrace):
         '''エラー時のログ出力/LINE通知を行う
-
         Args:
             message(str) : エラーメッセージ
             e(str) : エラー名
@@ -169,7 +167,6 @@ class SearchRace():
 
 class ResultRace(SearchRace):
     '''netkeibaのサイトから過去の中央競馬のレース結果データを取得する
-
     '''
 
     def __init__(self, argv0 = None, argv1 = None, argv2 = None):
@@ -228,13 +225,10 @@ class ResultRace(SearchRace):
 
     def get_result(self, race_id):
         '''レース番号からレース情報・結果をスクレイピング
-
         Args:
             race_id(str):レース番号。10桁(西暦+開催回+開催日+競馬場コード)
-
         Returns:
             df(pandas.DataFrame):レース情報と各馬の情報・結果をもったデータ
-
         '''
 
         logger.info(f'{babacodechange.netkeiba(race_id[4:6])}{race_id[10:]}Rのレース結果を取得します')
@@ -251,7 +245,6 @@ class ResultRace(SearchRace):
         print(df)
         print('-----------')
         #print(html)
-        exit()
 
         # TODO データ加工
 
@@ -280,7 +273,6 @@ class ResultRace(SearchRace):
 
 class ResultOdds(SearchRace):
     '''netkeibaのサイトから中央競馬の最終オッズを取得する
-
     '''
 
     def __init__(self, argv0 = None, argv1 = None, argv2 = None):
@@ -396,6 +388,140 @@ class URL():
     RACE = 'https://db.netkeiba.com/race/'
     # 単複オッズAPI
     TANPUKU = 'https://race.netkeiba.com/api/api_get_jra_odds.html?type=1&race_id='
+
+
+class Common():
+    '''レースを一意に定める際に必要なパラメータ'''
+    def __init__(self):
+        # レース開催日
+        self.race_date = ''
+        # レース番号
+        self.race_num = ''
+        # 競馬場コード
+        self.baba_code = ''
+
+# レース情報(発走前)
+class RaceInfo():
+    '''発走前に公表・確定するレースのパラメータ'''
+    def __init__(self):
+        # レース名
+        self.race_name = ''
+        # 馬場
+        self.baba = ''
+        # 天候
+        self.weather = ''
+        # 馬場状態
+        self.baba_status = ''
+        # 距離
+        self.distance = ''
+        # 回り(右/左)
+        self.around = ''
+        # 回り(内/外)
+        self.in_out = ''
+        # 発走時刻
+        self.race_time = ''
+        # 開催回
+        self.hold_num = ''
+        # 開催日
+        self.hold_date = ''
+        # 格・グレード
+        self.grade = ''
+        # 出走条件(年齢)
+        self.require_age = ''
+        # 出走条件(性別)
+        self.require_gender = ''
+        # 出走条件(国内/国際/混合)
+        self.require_country = ''
+        # 出走条件(特別指定/指定/他)
+        self.require_local = ''
+        # 斤量条件(定量/賞金別定/重賞別定/ハンデ)
+        self.load_kind = ''
+        # 1着賞金 TODO 同着時チェック
+        self.first_prize = ''
+        # 2着賞金
+        self.second_prize = ''
+        # 3着賞金
+        self.third_prize = ''
+        # 4着賞金
+        self.fourth_prize = ''
+        # 5着賞金
+        self.fifth_prize = ''
+        # 出走頭数
+        self.horse_num = ''
+
+class RaceResult():
+    '''レース全体に関係するレース結果データ'''
+    def __init__(self):
+        # コーナー通過順(馬番)
+        self.corner_rank = []
+        # 先頭馬のペース(秒)
+        self.pace = []
+
+class HorseInfo():
+    '''発走前の各馬のパラメータ'''
+    def __init__(self):
+        # 枠番
+        self.frame_num = ''
+        # 馬番(複合PK)
+        self.horse_num = ''
+        # 馬名
+        self.horse_name = ''
+        # 馬齢
+        self.age = ''
+        # 性別
+        self.gender = ''
+        # 斤量
+        self.load = ''
+        # 騎手名
+        self.jockey = ''
+        # 騎手減量
+        self.jockey_handi = ''
+        # 単勝
+        self.win_odds = ''
+        # 人気
+        self.popular = ''
+        # 馬体重
+        self.weight = ''
+        # 馬体重増減
+        self.weight_change = ''
+        # 調教師名
+        self.trainer = ''
+        # 調教師所属(美浦/栗東)
+        self.trainer_belong = ''
+        # 馬主名
+        self.owner = ''
+
+        # 以下は馬柱から
+        # レース間隔
+        self.blank = ''
+        # 父名
+        self.father = ''
+        # 母名
+        self.monther = ''
+        # 母父名
+        self.grandfather = ''
+        # 脚質(←netkeibaの主観データ？)
+        self.running_type = ''
+        # 所属(国内/国外)
+        self.country = ''
+        # 所属(中央/地方)
+        self.belong = ''
+        # ブリンカー(有/無)
+        self.blinker = ''
+        # 毛色
+        self.haircolor = ''
+
+class HorseResult():
+    '''各馬のレース結果のパラメータ'''
+    def __init__(self):
+        # 馬番(複合PK)
+        self.horse_num = ''
+        # 着順
+        self.rank = ''
+        # タイム
+        self.goal_time = ''
+        # 着差
+        self.diff_distance = ''
 
 if __name__ == '__main__':
     # ログ用インスタンス作成
