@@ -110,6 +110,7 @@ class Jra():
             except Exception as e:
                 logger.error(e)
                 logger.error(traceback.format_exc())
+                logger.error(f'レスポンスコード：{str(r.status_code)}')
                 if sleep_time != 0:
                   time.sleep(sleep_time)
             else:
@@ -371,6 +372,7 @@ class Jra():
     def get_odds(self, race, count = 1):
         '''(単勝・複勝)オッズの取得・記録を行う'''
         # オッズのテーブルを取得
+        logger.info(str(race.race_param))
         soup = self.do_action(race.race_param)
         if soup == -1:
             logger.error(f'オッズの取得に失敗しました')
