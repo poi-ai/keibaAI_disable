@@ -1,8 +1,9 @@
 import package
+import pandas as pd
 import re
 import requests
 from bs4 import BeautifulSoup
-from common import soup, logger
+from common import soup, logger, output
 
 def main(url = 'https://www.ai-yuma.com/'):
     while True:
@@ -21,13 +22,14 @@ def main(url = 'https://www.ai-yuma.com/'):
         # 画像の予測を取得
         for link in img_links:
             try:
-                get_img_pred(link)
+                get_img_pred(link, img_links[link])
             except Exception as e:
                 logger.error(str(link))
                 logger.error(str(e))
 
         # テキストの予測を取得
         for link in text_links:
+            get_text_pred(link, text_links[link])
             try:
                 get_text_pred(link)
             except Exception as e:
@@ -43,13 +45,26 @@ def main(url = 'https://www.ai-yuma.com/'):
 
         if url == None: break
 
-def get_img_pred(link):
+def get_img_pred(img_url, title):
     # TODO
     pass
 
-def get_text_pred(link):
-    # TODO
-    pass
+def get_text_pred(url, title):
+    get_flg = False
+    html = soup.get_soup(url)
+    content = html.find('div', class_ = 'entry-content').text
+    pred_list = []
+
+    for pred in re.finditer('[◎|◯|▲|△|☆|－].+\d+【.+%】.+\(.+\)', content):
+        pred_list.append(pred[0].replace(' ', ''))
+        get_flg = True
+
+    if not get_flg:
+        logger.warning(f'予測未取得：{url}')
+        return
+
+    output(pred_list, title)
+
 
 def get_url(html):
     # span pager-next 次のページ /pager-prev 前のページ
@@ -59,9 +74,13 @@ def get_url(html):
     url = url_frame.find('a').get('href')
     return url
 
-def output():
-    # TODO 取得した予測の加工/CSV出力
-    pass
+def output_csv(pred_list, title):
+    race_info = pd.DataFrame(list(re.search('(\d+)(.+)(\d+)R', title).groups()) for _ in range(len(pred_list)))
+    pred = pd.DataFrame([re.search('.(\d+)【(.+)%】(.+)\((.+)\)', i).groups() for i in pred_list], index = race_info.index)
+    df = pd.concat([race_info, pred], axis = 1)
+    df.columns = []
+
+    output.csv(df, 'yuma')
 
 def get_article_link(html):
     # リンク先の記事が予測ページかの判定
@@ -79,7 +98,7 @@ def get_article_link(html):
 
     # 記事概要に文字があるか(=テキスト予測か画像予測か)の判定
     img_pred = {}
-    text_pred = []
+    text_pred = {}
     bodys = html.find_all('div', class_ = 'entry-content')
     for index in pred_link_index:
         if bodys[index].text.replace('\n', '') == '':
@@ -87,11 +106,11 @@ def get_article_link(html):
             if img != None:
                 img_pred[img] = article_title[index].replace('\n', '')
         else:
-            text_pred.append(link_url[index])
+            text_pred[link_url[index]] = article_title[index].replace('\n', '')
 
     return img_pred, text_pred
 
 
 if __name__ == '__main__':
-    logger = logger.Logger()
+    logger = logger.Logger(0)
     main()
