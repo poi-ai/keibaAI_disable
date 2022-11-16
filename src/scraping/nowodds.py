@@ -1,11 +1,11 @@
-import jrarecordodds
-import narrecordodds
+import nowjraodds
+import nownarodds
 import package
 import time
 import traceback
 from common import logger, jst, line
 
-class RecordOdds():
+class NowOdds():
     '''中央・地方競馬オッズ取得
     Instance Parameter:
        jra_flg(bool) : 中央競馬処理稼働フラグ
@@ -72,7 +72,7 @@ class RecordOdds():
         if self.jra_flg:
             try:
                 # 中央競馬用インスタンス作成
-                jra = jrarecordodds.Jra()
+                jra = nowjraodds.Jra()
             except Exception as e:
                 self.error_output('中央_初期処理でエラー', e, traceback.format_exc())
                 self.jra_flg = False
@@ -84,7 +84,7 @@ class RecordOdds():
         if self.nar_flg:
             try:
                 # 地方競馬用インスタンス作成
-                nar = narrecordodds.Nar()
+                nar = nownarodds.Nar()
             except Exception as e:
                 self.error_output('地方_初期処理でエラー', e, traceback.format_exc())
                 self.nar_flg = False
@@ -269,5 +269,5 @@ if __name__ == '__main__':
     logger = logger.Logger()
 
     # 中央・地方処理呼び出しクラス
-    ro = RecordOdds()
+    ro = NowOdds()
 
