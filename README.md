@@ -3,9 +3,9 @@
 ![Relative date](https://img.shields.io/date/1640011380?label=first%20commit)
 ![GitHub last commit](https://img.shields.io/github/last-commit/poi-ai/keibaAI)
 ![GitHub commit activity](https://img.shields.io/github/commit-activity/m/poi-ai/keibaai)<br>
-[![Twitter](img/twitter.png)](https://twitter.com/intent/tweet?text=poi-ai/keibaAI&url=https://github.com/poi-ai/keibaAI)
-[![はてなブックマーク](img/hatebu.png)](https://b.hatena.ne.jp/entry/s/github.com/poi-ai/keibaAI)
-[![Facebook](img/facebook.png)](https://www.facebook.com/sharer/sharer.php?u=https://github.com/poi-ai/keibaAI)
+[![Twitter](https://github.com/poi-ai/img/blob/main/twitter.png)](https://twitter.com/intent/tweet?text=poi-ai/keibaAI&url=https://github.com/poi-ai/keibaAI)
+[![はてなブックマーク](https://github.com/poi-ai/img/blob/main/hatebu.png)](https://b.hatena.ne.jp/entry/s/github.com/poi-ai/keibaAI)
+[![Facebook](https://github.com/poi-ai/img/blob/main/facebook.png)](https://www.facebook.com/sharer/sharer.php?u=https://github.com/poi-ai/keibaAI)
 
 |項目|
 | :--- |
