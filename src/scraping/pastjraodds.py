@@ -10,7 +10,7 @@ from datetime import datetime
 from tqdm import tqdm
 
 class ResultOdds():
-    '''netkeibaのサイトから地方競馬の確定オッズを取得する
+    '''netkeibaのサイトから中央競馬の確定オッズを取得する
     Instance Parameter:
         latest_date(str) : 取得対象の最も新しい日付(yyyyMMdd)
                           デフォルト : システム稼働日前日

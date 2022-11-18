@@ -24,8 +24,7 @@ class ResultOdds():
 
     def __init__(self, oldest_date = '20070728', latest_date = jst.yesterday(), output_type = 'm'):
         logger.info('----------------------------')
-        logger.info('中央競馬過去オッズ取得システム起動')
-        line.send('中央競馬過去オッズ取得システム起動')
+        logger.info('地方競馬過去オッズ取得システム起動')
         logger.info('初期処理開始')
         self.__latest_date = latest_date
         self.__oldest_date = oldest_date
@@ -124,7 +123,24 @@ class ResultOdds():
 
             for race_id in race_ids:
 
-                # TODO レース情報取得処理メソッド呼び出し
+                try:
+                    # オッズテーブルの取得
+                    odds_table = self.get_odds(race_id)
+
+                    # DataFrame型(=正常レスポンス)でない場合は何もしない
+                    if type(odds_table) == bool:
+                        continue
+
+                except Exception as e:
+                    self.error_output('オッズテーブル取得処理でエラー', e, traceback.format_exc())
+                    exit()
+
+                try:
+                    # テーブルデータの加工/CSV出力
+                    self.record_odds(date, race_id, odds_table)
+                except Exception as e:
+                    self.error_output('テーブルデータの処理でエラー', e, traceback.format_exc())
+                    exit()
 
                 time.sleep(3)
 
@@ -181,9 +197,29 @@ class ResultOdds():
 
         # リストに変換して返す
         return [m.groups()[0] for m in races]
-    
-    # TODO ここらへんにレース情報取得メソッド
 
+    # TODO ここにレースデータ抽出処理
+
+    def record_odds(self, date, race_id, odds):
+        '''オッズデータにレース情報を付加して出力する'''
+
+        # レース情報を頭数分用意する
+        info = [[date, race_id[4:6], race_id[10:]] for _ in range(len(odds))]
+
+        write_df = pd.concat([pd.DataFrame(info, index = odds.index), pd.DataFrame(odds.index, index = odds.index), odds], axis=1)
+
+        write_df.columns = ['発走日', '競馬場コード', 'レース番号', '馬番', '単勝オッズ', '複勝オッズ下限', '複勝オッズ上限']
+
+        # CSVに出力
+        if self.output_type == 'a':
+            # 一つのファイルに出力
+            output.csv(write_df, 'jra_resultodds')
+        elif self.output_type == 'y':
+            # 年ごとにファイルを分割
+            output.csv(write_df, f'jra_resultodds_{date[:4]}')
+        else:
+            # 月ごとにファイルを分割
+            output.csv(write_df, f'jra_resultodds_{date[:6]}')
 
     def error_output(self, message, e, stacktrace):
         '''エラー時のログ出力/LINE通知を行う
@@ -201,12 +237,10 @@ class ResultOdds():
 
 class URL():
     '''netkeibaの各ページのURL'''
-    # レースリンク一覧
+    # レースリンク一覧 TODO
     RESULTS = 'https://db.netkeiba.com/race/list/'
-    # レース情報
+    # レース情報 TODO
     RACE = 'https://db.netkeiba.com/race/'
-    # 単複オッズAPI
-    TANPUKU = 'https://race.netkeiba.com/api/api_get_jra_odds.html?type=1&race_id='
 
 if __name__ == '__main__':
     # ログ用インスタンス作成
@@ -233,5 +267,5 @@ if __name__ == '__main__':
     # 主処理
     ro.main()
 
-    logger.info('中央競馬過去オッズ取得システム終了')
-    line.send('中央競馬過去オッズ取得システム終了')
+    logger.info('地方競馬過去オッズ取得システム終了')
+    line.send('地方競馬過去オッズ取得システム終了')
