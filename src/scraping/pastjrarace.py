@@ -9,13 +9,13 @@ from common import babacodechange, logger, jst, output, soup, line
 from datetime import datetime
 from tqdm import tqdm
 
-class ResultOdds():
-    '''netkeibaのサイトから中央競馬の確定オッズを取得する
+class RaceData():
+    '''netkeibaのサイトから中央競馬の過去レースデータを取得する
     Instance Parameter:
         latest_date(str) : 取得対象の最も新しい日付(yyyyMMdd)
                           デフォルト : システム稼働日前日
         oldest_date(str) : 取得対象の最も古い日付(yyyyMMdd)
-                           TODO デフォルト : 20070728(閲覧可能な最古の日付)
+                          デフォルト : 20070728(閲覧可能な最古の日付)
         date(list<str>) : 取得対象の日付(yyyyMMdd)
         url(URL) : netkeibaサイト内のURL一覧
         output_type(str) : 出力ファイルを分割
@@ -24,7 +24,7 @@ class ResultOdds():
 
     def __init__(self, oldest_date = '20070728', latest_date = jst.yesterday(), output_type = 'm'):
         logger.info('----------------------------')
-        logger.info('中央競馬過去オッズ取得システム起動')
+        logger.info('中央競馬過去レースデータ取得システム起動')
         logger.info('初期処理開始')
         self.__latest_date = latest_date
         self.__oldest_date = oldest_date
@@ -71,7 +71,7 @@ class ResultOdds():
         # 日付妥当性チェック
         if self.oldest_date < '20070728':
             logger.warning('取得対象最古日の値が2007/07/28より前になっています')
-            logger.warning('2007/07/28以前のオッズデータはnetkeibaサイト内に存在しないため取得できません')
+            logger.warning('2007/07/28以前のレースデータはnetkeibaサイト内に存在しないため取得できません')
             logger.warning(f'取得対象最古日:{self.oldest_date}→2007/07/28に変更します')
             self.oldest_date = jst.yesterday()
         elif self.oldest_date == jst.date():
@@ -112,7 +112,7 @@ class ResultOdds():
         # レースのある日を1日ずつ遡って取得処理を行う
         for date in tqdm(dates):
 
-            logger.info(f'{jst.change_format(date, "%Y%m%d", "%Y/%m/%d")}のオッズデータの取得を開始します')
+            logger.info(f'{jst.change_format(date, "%Y%m%d", "%Y/%m/%d")}のレースデータの取得を開始します')
 
             try:
                 # 指定日に行われる全レースのレースIDの取得
@@ -123,24 +123,7 @@ class ResultOdds():
 
             for race_id in race_ids:
 
-                try:
-                    # オッズテーブルの取得
-                    odds_table = self.get_odds(race_id)
-
-                    # DataFrame型(=正常レスポンス)でない場合は何もしない
-                    if type(odds_table) == bool:
-                        continue
-
-                except Exception as e:
-                    self.error_output('オッズテーブル取得処理でエラー', e, traceback.format_exc())
-                    exit()
-
-                try:
-                    # テーブルデータの加工/CSV出力
-                    self.record_odds(date, race_id, odds_table)
-                except Exception as e:
-                    self.error_output('テーブルデータの処理でエラー', e, traceback.format_exc())
-                    exit()
+                # TODO レース情報取得処理メソッド呼び出し
 
                 time.sleep(3)
 
@@ -197,29 +180,9 @@ class ResultOdds():
 
         # リストに変換して返す
         return [m.groups()[0] for m in races]
+    
+    # TODO ここらへんにレース情報取得メソッド
 
-    # TODO ここにレースデータ抽出処理
-
-    def record_odds(self, date, race_id, odds):
-        '''オッズデータにレース情報を付加して出力する'''
-
-        # レース情報を頭数分用意する
-        info = [[date, race_id[4:6], race_id[10:]] for _ in range(len(odds))]
-
-        write_df = pd.concat([pd.DataFrame(info, index = odds.index), pd.DataFrame(odds.index, index = odds.index), odds], axis=1)
-
-        write_df.columns = ['発走日', '競馬場コード', 'レース番号', '馬番', '単勝オッズ', '複勝オッズ下限', '複勝オッズ上限']
-
-        # CSVに出力
-        if self.output_type == 'a':
-            # 一つのファイルに出力
-            output.csv(write_df, 'jra_resultodds')
-        elif self.output_type == 'y':
-            # 年ごとにファイルを分割
-            output.csv(write_df, f'jra_resultodds_{date[:4]}')
-        else:
-            # 月ごとにファイルを分割
-            output.csv(write_df, f'jra_resultodds_{date[:6]}')
 
     def error_output(self, message, e, stacktrace):
         '''エラー時のログ出力/LINE通知を行う
@@ -242,6 +205,7 @@ class URL():
     # レース情報
     RACE = 'https://db.netkeiba.com/race/'
 
+
 if __name__ == '__main__':
     # ログ用インスタンス作成
     # プログレスバーを出すためコンソールには出力しない
@@ -250,11 +214,11 @@ if __name__ == '__main__':
     # 初期処理
     try:
         if len(sys.argv) >= 3:
-            ro = ResultOdds(sys.argv[1], sys.argv[2])
+            rd = RaceData(sys.argv[1], sys.argv[2])
         elif len(sys.argv) == 2:
-            ro = ResultOdds(sys.argv[1])
+            rd = RaceData(sys.argv[1])
         else:
-            ro = ResultOdds()
+            rd = RaceData()
     except Exception as e:
         logger.error('初期処理でエラー')
         logger.error(e)
@@ -265,7 +229,7 @@ if __name__ == '__main__':
         raise
 
     # 主処理
-    ro.main()
+    rd.main()
 
-    logger.info('中央競馬過去オッズ取得システム終了')
-    line.send('中央競馬過去オッズ取得システム終了')
+    logger.info('中央競馬過去レースデータ取得システム終了')
+    line.send('中央競馬過去レースデータ取得システム終了')
