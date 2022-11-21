@@ -105,19 +105,21 @@ class RaceData():
         '''主処理、各メソッドの呼び出し'''
 
         # 対象の日付リストの取得
-        date_list = self.get_date_list()
+        hold_date = self.get_hold_date()
 
         logger.info(f'取得対象日数は{len(date_list)}日です')
         print(f'取得対象日数は{len(date_list)}日です')
 
         # レースのある日を1日ずつ遡って取得処理を行う
-        for date in tqdm(date_list):
+        for hold_date in tqdm(hold_date_list):
 
-            logger.info(f'{jst.change_format(date, "%Y%m%d", "%Y/%m/%d")}のレースデータの取得を開始します')
+            logger.info(f'{jst.change_format(hold, "%Y%m%d", "%Y/%m/%d")}のレースデータの取得を開始します')
+
+            # TODO ここまで
 
             # 指定日に行われる全レースのレースID取得
             try:
-                race_id_list = self.get_race_id_list(date)
+                race_id_list = self.get_race_id(hold_date)
             except Exception as e:
                 self.error_output('レースURL取得処理でエラー', e, traceback.format_exc())
                 exit()
@@ -133,7 +135,7 @@ class RaceData():
 
             time.sleep(3)
 
-    def get_date_list(self):
+    def get_hold_date(self):
         '''取得対象範囲内でのレース開催日を取得
 
         Returns:
@@ -154,7 +156,7 @@ class RaceData():
 
         for _ in tqdm(range((int(target_year) - int(oldest_year)) * 12  + int(target_month) - int(oldest_month) + 1)):
             # 開催月を取得
-            hold_list = self.get_date_url(target_year, target_month)
+            hold_list = self.get_month_hold_date(target_year, target_month)
 
             # 開始日と同月の場合、開催日以前の日の切り落とし
             if target_year == latest_year and target_month == latest_month:
@@ -174,20 +176,21 @@ class RaceData():
             # 開催日を格納
             date_list.append(hold_list)
 
-            # 翌月へ
+            # 前月へ
             if target_month == '1':
                 target_year = str(int(target_year) - 1)
                 target_month = '12'
             else:
                 target_month = str(int(target_month) - 1)
 
+        # TODO 要確認
         print(date_list)
 
         # 一元化して返す
         return list(itertools.chain.from_iterable(date_list))
 
-    def get_date_url(self, years, month):
-        '''中央競馬の開催日を取得
+    def get_month_hold_date(self, years, month):
+        '''指定した年月の中央競馬の開催日を取得
 
         Args:
             years(str):取得する対象の年。yyyy
@@ -197,22 +200,25 @@ class RaceData():
             hold_list(list):対象年月の開催日。要素はyyyyMMdd形式のstr型。
 
         '''
+        # 開催カレンダーのURL
         url = f'https://race.netkeiba.com/top/calendar.html?year={years}&month={month}'
 
+        # ページ内の全リンクを取得
         soup = sp.get_soup(url)
         links = soup.find_all('a')
         hold_list = []
         for link in links:
             date_url = link.get('href')
+            # カレンダー内にあるリンクだけ取得
             if 'kaisai_date' in date_url:
                 hold_list.append(date_url[len(date_url) - 8:])
         return hold_list
 
-    def get_race_id_list(hold_date):
+    def get_race_id(hold_date):
         '''対象年月日のレース番号を取得
 
         Args:
-            hold_date(list):中央開催日の年月日(yyyyMMdd)
+            hold_date(list):中央競馬開催日の年月日(yyyyMMdd)
 
         Returns:
             race_id_list(list):対象年月日のレースIDを要素に持つリスト
@@ -222,7 +228,7 @@ class RaceData():
         race_id_list = []
 
         # ページ内の全URL取得
-        cource_url = 'https://race.netkeiba.com/top/race_list_sub.html?kaisai_date=' + hold_date
+        cource_url = f'https://race.netkeiba.com/top/race_list_sub.html?kaisai_date={hold_date}'
 
         soup = soup.get_soup(cource_url)
         links = soup.find_all('a')
