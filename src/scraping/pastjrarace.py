@@ -1,3 +1,4 @@
+import itertools
 import pandas as pd
 import package
 import re
@@ -104,64 +105,158 @@ class RaceData():
         '''主処理、各メソッドの呼び出し'''
 
         # 対象の日付リストの取得
-        dates = self.get_dates()
+        date_list = self.get_date_list()
 
-        logger.info(f'指定間日数は{len(dates)}日です')
-        print(f'指定間日数は{len(dates)}日です')
+        logger.info(f'取得対象日数は{len(date_list)}日です')
+        print(f'取得対象日数は{len(date_list)}日です')
 
         # レースのある日を1日ずつ遡って取得処理を行う
-        for date in tqdm(dates):
+        for date in tqdm(date_list):
 
             logger.info(f'{jst.change_format(date, "%Y%m%d", "%Y/%m/%d")}のレースデータの取得を開始します')
 
+            # 指定日に行われる全レースのレースID取得
             try:
-                # 指定日に行われる全レースのレースIDの取得
-                race_ids = self.get_race_url(date)
+                race_id_list = self.get_race_id_list(date)
             except Exception as e:
                 self.error_output('レースURL取得処理でエラー', e, traceback.format_exc())
                 exit()
 
-            for race_id in race_ids:
+            # TODO 動作確認用
+            print(race_id_list)
+
+            # レースIDからレース情報を取得する
+            for race_id in race_id_list:
 
                 # TODO レース情報取得処理メソッド呼び出し
+                pass
 
-                time.sleep(3)
+            time.sleep(3)
 
-    def get_dates(self):
-        '''取得対象日の取得を行う(レース未開催日も含む)'''
+    def get_date_list(self):
+        '''取得対象範囲内でのレース開催日を取得
 
-        # 対象日格納用
-        target_dates = []
-        
-        date = datetime.strptime(self.latest_date, '%Y%m%d')
-        oldest = datetime.strptime(self.oldest_date, '%Y%m%d')
+        Returns:
+            date_list(list[str]): レース開催日をyyyyMMdd型で持つリスト
 
-        while True:
-            if date < self.oldest_date:
-                return target_dates
-            target_append(date)
-            date = datetime.strptime(self.latest_date, '%Y%m%d') - timedelta(days = 1)
+        '''
 
-        return target_dates
+        # 取得対象の最古/最新日付の年と月を抽出
+        target_year = self.latest_date[:4]
+        target_month = self.latest_date[4:6]
+        latest_year = self.latest_date[:4]
+        latest_month = self.latest_date[4:6]
+        oldest_year = self.oldest_date[:4]
+        oldest_month = self.oldest_date[4:6]
 
-    def get_race_url(self, date):
-        '''指定した日に開催される競馬場のURLを取得する'''
-        # HTMLタグ取得
-        html = soup.get_soup(f'{self.url.RESULT_LIST_URL}/?kaisai_date={date}')
-        
-        # TODO ここまで
+        # 開催日を格納するリスト
+        date_list = []
 
-        # レース一覧記載枠の箇所を抽出
-        race_frame = html.find('div', class_ = 'race_kaisai_info')
+        for _ in tqdm.tqdm(range((int(oldest_year) - int(target_year)) * 12  + int(oldest_month) - int(target_month) + 1)):
+            # 開催月を取得
+            hold_list = self.get_date_url(target_year, target_month)
 
-        # レースへのリンクをすべて取得
-        races = re.finditer(r'/race/(\d+)/', str(race_frame))
+            # 開始日と同月の場合、開催日以前の日の切り落とし
+            if target_year == latest_year or target_month == latest_month:
+                hold_list.append(self.latest_date)
+                hold_list.sort()
+                hold_list = hold_list[hold_list.index(self.latest_date) + 1:]
 
-        # リストに変換して返す
-        return [m.groups()[0] for m in races]
-    
+            # 終了日と同月の場合、開催日以降の日の切り落とし
+            if target_year == oldest_year or target_month == oldest_month:
+                hold_list.append(self.oldest_date)
+                hold_list.sort()
+                if hold_list.count(self.oldest_date) == 2:
+                    hold_list = hold_list[:hold_list.index(self.oldest_date) + 1]
+                else:
+                    hold_list = hold_list[:hold_list.index(self.oldest_date)]
+
+            # 開催日を格納
+            date_list.append(hold_list)
+
+            # 翌月へ
+            if target_month == '12':
+                target_year = str(int(target_year) + 1)
+                target_month = '1'
+            else:
+                target_month = str(int(target_month) + 1)
+
+        # 一元化して返す
+        return list(itertools.chain.from_iterable(date_list))
+
+    def get_date_url(self, years, month):
+        '''中央競馬の開催日を取得
+
+        Args:
+            years(str):取得する対象の年。yyyy
+            month(str):取得する対象の月。MM
+
+        Return:
+            hold_list(list):対象年月の開催日。要素はyyyyMMdd形式のstr型。
+
+        '''
+        url = f'https://race.netkeiba.com/top/race_list_sub.html?year={years}&month={month}'
+
+        soup = soup.get_soup(url)
+        links = soup.find_all('a')
+        hold_list = []
+        for link in links:
+            date_url = link.get('href')
+            if 'kaisai_date' in date_url:
+                hold_list.append(date_url[len(date_url) - 8:])
+        return hold_list
+
+    def get_race_id_list(hold_date):
+        '''対象年月日のレース番号を取得
+
+        Args:
+            hold_date(list):中央開催日の年月日(yyyyMMdd)
+
+        Returns:
+            race_id_list(list):対象年月日のレースIDを要素に持つリスト
+
+        '''
+        # 各開催日からレースIDをリストに代入
+        race_id_list = []
+
+        # ページ内の全URL取得
+        cource_url = 'https://race.netkeiba.com/top/race_list_sub.html?kaisai_date=' + hold_date
+
+        soup = soup.get_soup(cource_url)
+        links = soup.find_all('a')
+
+        for link in links:
+            race_url = link.get('href')
+            # レース結果ページのみ取得しその中からレースIDを切り出す
+            if 'result' in race_url:
+                race_id_list.append(race_url[28:40])
+
+        return race_id_list
+
     # TODO ここらへんにレース情報取得メソッド
 
+    def record_odds(self, date, race_id, odds):
+        '''オッズデータにレース情報を付加して出力する
+            TODO 使えるなら流用、使えないなら削除
+        '''
+
+        # レース情報を頭数分用意する
+        info = [[date, race_id[4:6], race_id[10:]] for _ in range(len(odds))]
+
+        write_df = pd.concat([pd.DataFrame(info, index = odds.index), pd.DataFrame(odds.index, index = odds.index), odds], axis=1)
+
+        write_df.columns = ['発走日', '競馬場コード', 'レース番号', '馬番', '単勝オッズ', '複勝オッズ下限', '複勝オッズ上限']
+
+        # CSVに出力
+        if self.output_type == 'a':
+            # 一つのファイルに出力
+            output.csv(write_df, 'jra_resultodds')
+        elif self.output_type == 'y':
+            # 年ごとにファイルを分割
+            output.csv(write_df, f'jra_resultodds_{date[:4]}')
+        else:
+            # 月ごとにファイルを分割
+            output.csv(write_df, f'jra_resultodds_{date[:6]}')
 
     def error_output(self, message, e, stacktrace):
         '''エラー時のログ出力/LINE通知を行う
@@ -183,6 +278,8 @@ class URL():
     RESULTS = 'https://db.netkeiba.com/race/list/'
     # レース情報
     RACE = 'https://db.netkeiba.com/race/'
+    # 開催カレンダーページ
+    CALENDAR_URL = 'https://race.netkeiba.com/top/calendar.html'
     # 日別レース一覧ページ
     RACE_LIST_URL = 'https://race.netkeiba.com/top/race_list_sub.html'
 

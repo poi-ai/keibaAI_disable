@@ -10,7 +10,7 @@ from datetime import datetime, timedelta
 from tqdm import tqdm
 
 class ResultOdds():
-    '''netkeibaのサイトから地方競馬の確定オッズを取得する
+    '''netkeibaのサイトから地方競馬の過去レースデータを取得する
     Instance Parameter:
         latest_date(str) : 取得対象の最も新しい日付(yyyyMMdd)
                           デフォルト : システム稼働日前日
@@ -24,7 +24,7 @@ class ResultOdds():
 
     def __init__(self, oldest_date = '20070728', latest_date = jst.yesterday(), output_type = 'm'):
         logger.info('----------------------------')
-        logger.info('地方競馬過去オッズ取得システム起動')
+        logger.info('地方競馬過去レースデータ取得システム起動')
         logger.info('初期処理開始')
         self.__latest_date = latest_date
         self.__oldest_date = oldest_date
@@ -71,7 +71,7 @@ class ResultOdds():
         # 日付妥当性チェック
         if self.oldest_date < '20070728':
             logger.warning('取得対象最古日の値が2007/07/28より前になっています')
-            logger.warning('2007/07/28以前のオッズデータはnetkeibaサイト内に存在しないため取得できません')
+            logger.warning('2007/07/28以前のレースデータはnetkeibaサイト内に存在しないため取得できません')
             logger.warning(f'取得対象最古日:{self.oldest_date}→2007/07/28に変更します')
             self.oldest_date = jst.yesterday()
         elif self.oldest_date == jst.date():
@@ -116,50 +116,35 @@ class ResultOdds():
 
             try:
                 # 指定日に行われる全レースのレースIDの取得
-                race_ids = self.get_race_url(date)
+                race_id_list = self.get_race_url(date)
             except Exception as e:
                 self.error_output('レースURL取得処理でエラー', e, traceback.format_exc())
                 exit()
 
-            for race_id in race_ids:
+            # TODO 動作確認用
+            print(race_id_list)
 
-                try:
-                    # オッズテーブルの取得
-                    odds_table = self.get_odds(race_id)
+            # レースIDからレース情報を取得する
+            for race_id in race_id_list:
 
-                    # DataFrame型(=正常レスポンス)でない場合は何もしない
-                    if type(odds_table) == bool:
-                        continue
+                # TODO レース情報取得処理メソッド呼び出し
+                pass
 
-                except Exception as e:
-                    self.error_output('オッズテーブル取得処理でエラー', e, traceback.format_exc())
-                    exit()
-
-                try:
-                    # テーブルデータの加工/CSV出力
-                    self.record_odds(date, race_id, odds_table)
-                except Exception as e:
-                    self.error_output('テーブルデータの処理でエラー', e, traceback.format_exc())
-                    exit()
-
-                time.sleep(3)
+            time.sleep(3)
 
     def get_dates(self):
         '''取得対象日の取得を行う(レース未開催日も含む)'''
 
         # 対象日格納用
         target_dates = []
-        
+
         date = datetime.strptime(self.latest_date, '%Y%m%d')
-        oldest = datetime.strptime(self.oldest_date, '%Y%m%d')
 
         while True:
             if date < self.oldest_date:
                 return target_dates
-            target_append(date)
+            target_dates.append(date)
             date = datetime.strptime(self.latest_date, '%Y%m%d') - timedelta(days = 1)
-
-        return target_dates
 
     def get_race_url(self, date):
         '''指定した日に開催される競馬場のURLを取得する'''
@@ -178,7 +163,9 @@ class ResultOdds():
     # TODO ここにレースデータ抽出処理
 
     def record_odds(self, date, race_id, odds):
-        '''オッズデータにレース情報を付加して出力する'''
+        '''オッズデータにレース情報を付加して出力する
+            TODO 流用できるなら流用 使えないなら削除
+        '''
 
         # レース情報を頭数分用意する
         info = [[date, race_id[4:6], race_id[10:]] for _ in range(len(odds))]
@@ -245,5 +232,5 @@ if __name__ == '__main__':
     # 主処理
     ro.main()
 
-    logger.info('地方競馬過去オッズ取得システム終了')
-    line.send('地方競馬過去オッズ取得システム終了')
+    logger.info('地方競馬過去レースデータ取得システム終了')
+    line.send('地方競馬過去レースデータ取得システム終了')
