@@ -6,7 +6,7 @@ import sys
 import time
 import traceback
 from common import babacodechange, logger, jst, output, soup, line
-from datetime import datetime
+from datetime import datetime, timedelta
 from tqdm import tqdm
 
 class ResultOdds():
@@ -106,13 +106,13 @@ class ResultOdds():
         # 対象の日付リストの取得
         dates = self.get_dates()
 
-        logger.info(f'取得対象日数は{len(dates)}日です')
-        print(f'取得対象日数は{len(dates)}日です')
+        logger.info(f'指定間日数は{len(dates)}日です')
+        print(f'指定間日数は{len(dates)}日です')
 
         # レースのある日を1日ずつ遡って取得処理を行う
         for date in tqdm(dates):
 
-            logger.info(f'{jst.change_format(date, "%Y%m%d", "%Y/%m/%d")}のオッズデータの取得を開始します')
+            logger.info(f'{jst.change_format(date, "%Y%m%d", "%Y/%m/%d")}のレースデータの取得を開始します')
 
             try:
                 # 指定日に行われる全レースのレースIDの取得
@@ -145,42 +145,19 @@ class ResultOdds():
                 time.sleep(3)
 
     def get_dates(self):
-        '''取得対象日の取得を行う'''
+        '''取得対象日の取得を行う(レース未開催日も含む)'''
 
         # 対象日格納用
         target_dates = []
+        
+        date = datetime.strptime(self.latest_date, '%Y%m%d')
+        oldest = datetime.strptime(self.oldest_date, '%Y%m%d')
 
-        # 対象最新日の月から順に検索していく
-        month = self.latest_date[:6]
-
-        # 対象最古日より前の月になるまでループ
-        while month >= self.oldest_date[:6]:
-            logger.info(f'{jst.change_format(month, "%Y%m", "%Y/%m")}のレース開催日を取得します')
-            print(f'{jst.change_format(month, "%Y%m", "%Y/%m")}のレース開催日を取得します')
-
-            # HTMLタグ取得
-            html = soup.get_soup(f'{self.url.RESULTS}{month}01')
-
-            # 開催カレンダーの取得
-            calendar = html.find('table')
-
-            # 開催日のリンクがある日付を抽出
-            dates = re.finditer(r'/race/list/(\d+)/', str(calendar))
-
-            # 降順にするためリストに変換
-            date_list = [m.groups()[0] for m in dates]
-            date_list.reverse()
-
-            # 期間内だったらリストに追加
-            for date in date_list:
-                if self.oldest_date <= date <= self.latest_date:
-                    target_dates.append(date)
-
-            # 月をひとつ前に戻す
-            if month[4:] == '01':
-                month = str(int(month) - 89)
-            else:
-                month = str(int(month) - 1)
+        while True:
+            if date < self.oldest_date:
+                return target_dates
+            target_append(date)
+            date = datetime.strptime(self.latest_date, '%Y%m%d') - timedelta(days = 1)
 
         return target_dates
 
@@ -241,6 +218,7 @@ class URL():
     RESULTS = 'https://db.netkeiba.com/race/list/'
     # レース情報 TODO
     RACE = 'https://db.netkeiba.com/race/'
+    
 
 if __name__ == '__main__':
     # ログ用インスタンス作成
