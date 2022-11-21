@@ -6,7 +6,7 @@ import json
 import sys
 import time
 import traceback
-from common import babacodechange, logger, jst, output, soup, line
+from common import babacodechange, logger, jst, output, soup as sp, line
 from datetime import datetime, timedelta
 from tqdm import tqdm
 
@@ -152,18 +152,18 @@ class RaceData():
         # 開催日を格納するリスト
         date_list = []
 
-        for _ in tqdm.tqdm(range((int(oldest_year) - int(target_year)) * 12  + int(oldest_month) - int(target_month) + 1)):
+        for _ in tqdm(range((int(target_year) - int(oldest_year)) * 12  + int(target_month) - int(oldest_month) + 1)):
             # 開催月を取得
             hold_list = self.get_date_url(target_year, target_month)
 
             # 開始日と同月の場合、開催日以前の日の切り落とし
-            if target_year == latest_year or target_month == latest_month:
+            if target_year == latest_year and target_month == latest_month:
                 hold_list.append(self.latest_date)
                 hold_list.sort()
                 hold_list = hold_list[hold_list.index(self.latest_date) + 1:]
 
             # 終了日と同月の場合、開催日以降の日の切り落とし
-            if target_year == oldest_year or target_month == oldest_month:
+            if target_year == oldest_year and target_month == oldest_month:
                 hold_list.append(self.oldest_date)
                 hold_list.sort()
                 if hold_list.count(self.oldest_date) == 2:
@@ -175,11 +175,13 @@ class RaceData():
             date_list.append(hold_list)
 
             # 翌月へ
-            if target_month == '12':
-                target_year = str(int(target_year) + 1)
-                target_month = '1'
+            if target_month == '1':
+                target_year = str(int(target_year) - 1)
+                target_month = '12'
             else:
-                target_month = str(int(target_month) + 1)
+                target_month = str(int(target_month) - 1)
+
+        print(date_list)
 
         # 一元化して返す
         return list(itertools.chain.from_iterable(date_list))
@@ -195,9 +197,9 @@ class RaceData():
             hold_list(list):対象年月の開催日。要素はyyyyMMdd形式のstr型。
 
         '''
-        url = f'https://race.netkeiba.com/top/race_list_sub.html?year={years}&month={month}'
+        url = f'https://race.netkeiba.com/top/calendar.html?year={years}&month={month}'
 
-        soup = soup.get_soup(url)
+        soup = sp.get_soup(url)
         links = soup.find_all('a')
         hold_list = []
         for link in links:
