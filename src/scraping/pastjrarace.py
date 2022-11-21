@@ -6,7 +6,7 @@ import sys
 import time
 import traceback
 from common import babacodechange, logger, jst, output, soup, line
-from datetime import datetime
+from datetime import datetime, timedelta
 from tqdm import tqdm
 
 class RaceData():
@@ -106,8 +106,8 @@ class RaceData():
         # 対象の日付リストの取得
         dates = self.get_dates()
 
-        logger.info(f'取得対象日数は{len(dates)}日です')
-        print(f'取得対象日数は{len(dates)}日です')
+        logger.info(f'指定間日数は{len(dates)}日です')
+        print(f'指定間日数は{len(dates)}日です')
 
         # レースのある日を1日ずつ遡って取得処理を行う
         for date in tqdm(dates):
@@ -128,49 +128,28 @@ class RaceData():
                 time.sleep(3)
 
     def get_dates(self):
-        '''取得対象日の取得を行う'''
+        '''取得対象日の取得を行う(レース未開催日も含む)'''
 
         # 対象日格納用
         target_dates = []
+        
+        date = datetime.strptime(self.latest_date, '%Y%m%d')
+        oldest = datetime.strptime(self.oldest_date, '%Y%m%d')
 
-        # 対象最新日の月から順に検索していく
-        month = self.latest_date[:6]
-
-        # 対象最古日より前の月になるまでループ
-        while month >= self.oldest_date[:6]:
-            logger.info(f'{jst.change_format(month, "%Y%m", "%Y/%m")}のレース開催日を取得します')
-            print(f'{jst.change_format(month, "%Y%m", "%Y/%m")}のレース開催日を取得します')
-
-            # HTMLタグ取得
-            html = soup.get_soup(f'{self.url.RESULTS}{month}01')
-
-            # 開催カレンダーの取得
-            calendar = html.find('table')
-
-            # 開催日のリンクがある日付を抽出
-            dates = re.finditer(r'/race/list/(\d+)/', str(calendar))
-
-            # 降順にするためリストに変換
-            date_list = [m.groups()[0] for m in dates]
-            date_list.reverse()
-
-            # 期間内だったらリストに追加
-            for date in date_list:
-                if self.oldest_date <= date <= self.latest_date:
-                    target_dates.append(date)
-
-            # 月をひとつ前に戻す
-            if month[4:] == '01':
-                month = str(int(month) - 89)
-            else:
-                month = str(int(month) - 1)
+        while True:
+            if date < self.oldest_date:
+                return target_dates
+            target_append(date)
+            date = datetime.strptime(self.latest_date, '%Y%m%d') - timedelta(days = 1)
 
         return target_dates
 
     def get_race_url(self, date):
         '''指定した日に開催される競馬場のURLを取得する'''
         # HTMLタグ取得
-        html = soup.get_soup(f'{self.url.RESULTS}{date}')
+        html = soup.get_soup(f'{self.url.RESULT_LIST_URL}/?kaisai_date={date}')
+        
+        # TODO ここまで
 
         # レース一覧記載枠の箇所を抽出
         race_frame = html.find('div', class_ = 'race_kaisai_info')
@@ -204,6 +183,8 @@ class URL():
     RESULTS = 'https://db.netkeiba.com/race/list/'
     # レース情報
     RACE = 'https://db.netkeiba.com/race/'
+    # 日別レース一覧ページ
+    RACE_LIST_URL = 'https://race.netkeiba.com/top/race_list_sub.html'
 
 
 if __name__ == '__main__':
