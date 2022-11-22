@@ -9,7 +9,7 @@ from common import babacodechange, logger, jst, output, soup, line
 from datetime import datetime, timedelta
 from tqdm import tqdm
 
-class ResultOdds():
+class RaceData():
     '''netkeibaのサイトから地方競馬の過去レースデータを取得する
     Instance Parameter:
         latest_date(str) : 取得対象の最も新しい日付(yyyyMMdd)
@@ -104,13 +104,13 @@ class ResultOdds():
         '''主処理、各メソッドの呼び出し'''
 
         # 対象の日付リストの取得
-        dates = self.get_dates()
+        date_list = self.get_between_date()
 
-        logger.info(f'指定間日数は{len(dates)}日です')
-        print(f'指定間日数は{len(dates)}日です')
+        logger.info(f'取得対象日数は{len(dates)}日です')
+        print(f'取得対象日数は{len(dates)}日です')
 
         # レースのある日を1日ずつ遡って取得処理を行う
-        for date in tqdm(dates):
+        for date in tqdm(date_list):
 
             logger.info(f'{jst.change_format(date, "%Y%m%d", "%Y/%m/%d")}のレースデータの取得を開始します')
 
@@ -132,19 +132,27 @@ class ResultOdds():
 
             time.sleep(3)
 
-    def get_dates(self):
-        '''取得対象日の取得を行う(レース未開催日も含む)'''
+    def get_between_date(self):
+        '''取得対象間の全日付を取得する
+
+        Return:
+            target_date_list(list[str]): 
+                oldest_dateからlatest_date間の全日付のリスト(yyyyMMdd型)
+
+        '''
 
         # 対象日格納用
-        target_dates = []
+        target_date_list = []
 
-        date = datetime.strptime(self.latest_date, '%Y%m%d')
+        target_date = datetime.strptime(self.latest_date, '%Y%m%d')
 
         while True:
-            if date < self.oldest_date:
-                return target_dates
-            target_dates.append(date)
+            if target_date < self.oldest_date:
+                break
+            target_date_list.append(target_date)
             date = datetime.strptime(self.latest_date, '%Y%m%d') - timedelta(days = 1)
+
+        return target_date_list
 
     def get_race_url(self, date):
         '''指定した日に開催される競馬場のURLを取得する'''
