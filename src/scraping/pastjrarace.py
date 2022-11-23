@@ -6,7 +6,7 @@ import json
 import sys
 import time
 import traceback
-from common import babacodechange, logger, jst, output, soup as sp, line
+from common import babacodechange, logger, jst, output, soup as Soup, line
 from datetime import datetime, timedelta
 from tqdm import tqdm
 
@@ -105,27 +105,24 @@ class RaceData():
         '''主処理、各メソッドの呼び出し'''
 
         # 対象の日付リストの取得
-        hold_date = self.get_hold_date()
+        hold_date_list = self.get_hold_date()
 
-        logger.info(f'取得対象日数は{len(date_list)}日です')
-        print(f'取得対象日数は{len(date_list)}日です')
+        logger.info(f'取得対象日数は{len(hold_date_list)}日です')
+        print(f'取得対象日数は{len(hold_date_list)}日です')
 
         # レースのある日を1日ずつ遡って取得処理を行う
         for hold_date in tqdm(hold_date_list):
 
-            logger.info(f'{jst.change_format(hold, "%Y%m%d", "%Y/%m/%d")}のレースデータの取得を開始します')
-
-            # TODO ここまで
+            logger.info(f'{jst.change_format(hold_date, "%Y%m%d", "%Y/%m/%d")}のレースデータの取得を開始します')
 
             # 指定日に行われる全レースのレースID取得
             try:
                 race_id_list = self.get_race_id(hold_date)
             except Exception as e:
                 self.error_output('レースURL取得処理でエラー', e, traceback.format_exc())
-                exit()
+                continue
 
-            # TODO 動作確認用
-            print(race_id_list)
+            logger.info(f'取得レース数：{len(race_id_list)}')
 
             # レースIDからレース情報を取得する
             for race_id in race_id_list:
@@ -157,17 +154,18 @@ class RaceData():
         for _ in tqdm(range((int(target_year) - int(oldest_year)) * 12  + int(target_month) - int(oldest_month) + 1)):
             # 開催月を取得
             hold_list = self.get_month_hold_date(target_year, target_month)
+            hold_list.sort(reverse = True)
 
             # 開始日と同月の場合、開催日以前の日の切り落とし
             if target_year == latest_year and target_month == latest_month:
                 hold_list.append(self.latest_date)
-                hold_list.sort()
+                hold_list.sort(reverse = True)
                 hold_list = hold_list[hold_list.index(self.latest_date) + 1:]
 
             # 終了日と同月の場合、開催日以降の日の切り落とし
             if target_year == oldest_year and target_month == oldest_month:
                 hold_list.append(self.oldest_date)
-                hold_list.sort()
+                hold_list.sort(reverse = True)
                 if hold_list.count(self.oldest_date) == 2:
                     hold_list = hold_list[:hold_list.index(self.oldest_date) + 1]
                 else:
@@ -177,14 +175,11 @@ class RaceData():
             date_list.append(hold_list)
 
             # 前月へ
-            if target_month == '1':
+            if target_month == '01':
                 target_year = str(int(target_year) - 1)
                 target_month = '12'
             else:
-                target_month = str(int(target_month) - 1)
-
-        # TODO 要確認
-        print(date_list)
+                target_month = str(int(target_month) - 1).zfill(2)
 
         # 一元化して返す
         return list(itertools.chain.from_iterable(date_list))
@@ -204,7 +199,7 @@ class RaceData():
         url = f'https://race.netkeiba.com/top/calendar.html?year={years}&month={month}'
 
         # ページ内の全リンクを取得
-        soup = sp.get_soup(url)
+        soup = Soup.get_soup(url)
         links = soup.find_all('a')
         hold_list = []
         for link in links:
@@ -214,7 +209,7 @@ class RaceData():
                 hold_list.append(date_url[len(date_url) - 8:])
         return hold_list
 
-    def get_race_id(hold_date):
+    def get_race_id(self, hold_date):
         '''対象年月日のレース番号を取得
 
         Args:
@@ -230,7 +225,7 @@ class RaceData():
         # ページ内の全URL取得
         cource_url = f'https://race.netkeiba.com/top/race_list_sub.html?kaisai_date={hold_date}'
 
-        soup = soup.get_soup(cource_url)
+        soup = Soup.get_soup(cource_url)
         links = soup.find_all('a')
 
         for link in links:
