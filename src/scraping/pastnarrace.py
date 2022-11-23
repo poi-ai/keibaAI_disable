@@ -1,3 +1,4 @@
+import itertools
 import pandas as pd
 import package
 import re
@@ -5,7 +6,7 @@ import json
 import sys
 import time
 import traceback
-from common import babacodechange, logger, jst, output, soup, line
+from common import babacodechange, logger, jst, output, soup as Soup, line
 from datetime import datetime, timedelta
 from tqdm import tqdm
 
@@ -15,14 +16,14 @@ class RaceData():
         latest_date(str) : 取得対象の最も新しい日付(yyyyMMdd)
                           デフォルト : システム稼働日前日
         oldest_date(str) : 取得対象の最も古い日付(yyyyMMdd)
-                          デフォルト : 20070728(閲覧可能な最古の日付)
+                          デフォルト : 20150225(閲覧可能な最古の日付)
         date(list<str>) : 取得対象の日付(yyyyMMdd)
         url(URL) : netkeibaサイト内のURL一覧
         output_type(str) : 出力ファイルを分割
                            m : 月ごと(デフォルト)、y : 年ごと、a : 全ファイルまとめて
     '''
 
-    def __init__(self, oldest_date = '20070728', latest_date = jst.yesterday(), output_type = 'm'):
+    def __init__(self, oldest_date = '20150225', latest_date = jst.yesterday(), output_type = 'm'):
         logger.info('----------------------------')
         logger.info('地方競馬過去レースデータ取得システム起動')
         logger.info('初期処理開始')
@@ -58,8 +59,8 @@ class RaceData():
             tmp = datetime.strptime(self.oldest_date, '%Y%m%d')
         except:
             logger.warning('取得対象最古日の値が不正です')
-            logger.warning(f'取得対象最古日:{self.oldest_date}→2007/07/28 に変更します')
-            self.oldest_date = '20070728'
+            logger.warning(f'取得対象最古日:{self.oldest_date}→2015/02/25 に変更します')
+            self.oldest_date = '20150225'
 
         try:
             tmp = datetime.strptime(self.latest_date, '%Y%m%d')
@@ -69,10 +70,10 @@ class RaceData():
             self.latest_date = jst.yesterday()
 
         # 日付妥当性チェック
-        if self.oldest_date < '20070728':
-            logger.warning('取得対象最古日の値が2007/07/28より前になっています')
-            logger.warning('2007/07/28以前のレースデータはnetkeibaサイト内に存在しないため取得できません')
-            logger.warning(f'取得対象最古日:{self.oldest_date}→2007/07/28に変更します')
+        if self.oldest_date < '20150225':
+            logger.warning('取得対象最古日の値が2015/02/25より前になっています')
+            logger.warning('2015/02/25以前のレースデータはnetkeibaサイト内に存在しないため取得できません')
+            logger.warning(f'取得対象最古日:{self.oldest_date}→2015/02/25に変更します')
             self.oldest_date = jst.yesterday()
         elif self.oldest_date == jst.date():
             logger.warning('エラーを起こす可能性が高いため本日のレースは取得できません')
@@ -106,27 +107,35 @@ class RaceData():
         # 対象の日付リストの取得
         date_list = self.get_between_date()
 
-        logger.info(f'取得対象日数は{len(dates)}日です')
-        print(f'取得対象日数は{len(dates)}日です')
+        logger.info(f'取得対象日数は{len(date_list)}日です')
+        print(f'取得対象日数は{len(date_list)}日です')
 
-        # レースのある日を1日ずつ遡って取得処理を行う
+        # 1日ずつ遡って取得処理を行う
         for date in tqdm(date_list):
 
             logger.info(f'{jst.change_format(date, "%Y%m%d", "%Y/%m/%d")}のレースデータの取得を開始します')
 
+            # 日付から各競馬場の開催IDを取得
             try:
-                # 指定日に行われる全レースのレースIDの取得
-                race_id_list = self.get_race_url(date)
+                hold_id_list = self.get_hold_id(date)
             except Exception as e:
-                self.error_output('レースURL取得処理でエラー', e, traceback.format_exc())
-                exit()
+                self.error_output('開催ID取得処理でエラー', e, traceback.format_exc())
+                continue
 
-            # TODO 動作確認用
-            print(race_id_list)
+            # レースIDを保管
+            race_id_list = []
+
+            # 開催IDからレースIDを取得
+            for hold_id in hold_id_list:
+                try:
+                    # 指定日に行われる全レースのレースIDの取得
+                    race_id_list = self.get_race_id(date, hold_id)
+                except Exception as e:
+                    self.error_output('レースURL取得処理でエラー', e, traceback.format_exc())
+                    continue
 
             # レースIDからレース情報を取得する
             for race_id in race_id_list:
-
                 # TODO レース情報取得処理メソッド呼び出し
                 pass
 
@@ -136,37 +145,89 @@ class RaceData():
         '''取得対象間の全日付を取得する
 
         Return:
-            target_date_list(list[str]): 
+            target_date_list(list[str]):
                 oldest_dateからlatest_date間の全日付のリスト(yyyyMMdd型)
-
         '''
 
         # 対象日格納用
         target_date_list = []
 
         target_date = datetime.strptime(self.latest_date, '%Y%m%d')
+        end_date = datetime.strptime(self.oldest_date, '%Y%m%d')
 
         while True:
-            if target_date < self.oldest_date:
+            if target_date < end_date:
                 break
-            target_date_list.append(target_date)
-            date = datetime.strptime(self.latest_date, '%Y%m%d') - timedelta(days = 1)
+            target_date_list.append(datetime.strftime(target_date, '%Y%m%d'))
+            target_date = target_date - timedelta(days = 1)
 
         return target_date_list
 
-    def get_race_url(self, date):
-        '''指定した日に開催される競馬場のURLを取得する'''
-        # HTMLタグ取得
-        html = soup.get_soup(f'{self.url.RESULTS}{date}')
+    def get_hold_id(self, kaisai_date):
+        '''指定日に開催された各競馬場の開催IDを取得する
 
-        # レース一覧記載枠の箇所を抽出
-        race_frame = html.find('div', class_ = 'race_kaisai_info')
+        Args:
+            kaisai_date(str):取得したい日付(yyyyMMddフォーマット)
 
-        # レースへのリンクをすべて取得
-        races = re.finditer(r'/race/(\d+)/', str(race_frame))
+        Returns:
+            kaisai_id_list(list[str]):指定日にされた各競馬場の開催IDのリスト
+        '''
+        # 開催IDが記載されているURL
+        url = f'https://nar.netkeiba.com/top/race_list_sub.html?kaisai_date={kaisai_date}'
 
-        # リストに変換して返す
-        return [m.groups()[0] for m in races]
+        kaisai_id_list = []
+
+        soup = Soup.get_soup(url)
+        # 開催IDのリンクはli属性内にあるのでliを取得
+        li = soup.find_all('li')
+
+        # li属性内のa属性を取得
+        links = [link.find_all('a') for link in li]
+
+        # 一元化
+        links = list(itertools.chain.from_iterable(links))
+
+        # a属性から開催IDのリンクがあるURLを抽出
+        for link in links:
+            hold_url = link.get('href')
+            # レース結果ページのみ取得しその中からレースIDを切り出す
+            if 'kaisai_id' in hold_url:
+                kaisai_id_list.append(hold_url[11:21])
+
+        return kaisai_id_list
+
+    def get_race_id(self, kaisai_date, kaisai_id):
+        '''指定した開催IDからレースIDを取得する
+
+        Args:
+            kaisai_date(str):開催日(yyyyMMddフォーマット)
+            kaisai_id(str):開催ID(netkeibaの独自フォーマット)
+
+        Returns:
+            race_id_list(list[str]):レースID(netkeiba独自)のリスト
+        '''
+        # 開催IDが記載されているURL
+        url = f'https://nar.netkeiba.com/top/race_list_sub.html?kaisai_date={kaisai_date}&kaisai_id={kaisai_id}'
+
+        race_id_list = []
+
+        soup = Soup.get_soup(url)
+        li = soup.find_all('li')
+
+        # li属性内のa属性を取得
+        links = [link.find_all('a') for link in li]
+
+        # 一元化
+        links = list(itertools.chain.from_iterable(links))
+
+        # a属性から開催IDのリンクがあるURLを抽出
+        for link in links:
+            race_url = link.get('href')
+            # レース結果ページのみ取得しその中からレースIDを切り出す
+            if 'result.html' in race_url:
+                race_id_list.append(race_url[28:40])
+
+        return race_id_list
 
     # TODO ここにレースデータ抽出処理
 
@@ -213,7 +274,8 @@ class URL():
     RESULTS = 'https://db.netkeiba.com/race/list/'
     # レース情報 TODO
     RACE = 'https://db.netkeiba.com/race/'
-    
+    # 日別レース一覧ページ
+    RACE_LIST_URL = 'https://race.netkeiba.com/top/race_list_sub.html'
 
 if __name__ == '__main__':
     # ログ用インスタンス作成
@@ -223,11 +285,11 @@ if __name__ == '__main__':
     # 初期処理
     try:
         if len(sys.argv) >= 3:
-            ro = ResultOdds(sys.argv[1], sys.argv[2])
+            rd = RaceData(sys.argv[1], sys.argv[2])
         elif len(sys.argv) == 2:
-            ro = ResultOdds(sys.argv[1])
+            rd = RaceData(sys.argv[1])
         else:
-            ro = ResultOdds()
+            rd = RaceData()
     except Exception as e:
         logger.error('初期処理でエラー')
         logger.error(e)
@@ -238,7 +300,7 @@ if __name__ == '__main__':
         raise
 
     # 主処理
-    ro.main()
+    rd.main()
 
     logger.info('地方競馬過去レースデータ取得システム終了')
     line.send('地方競馬過去レースデータ取得システム終了')
