@@ -4,7 +4,7 @@ import re
 import sys
 import time
 import traceback
-from common import logger, jst, output, soup, babacodechange, line
+from common import logger, jst, output, soup, babacodechange, line, validate
 from datetime import datetime
 from tqdm import tqdm
 
@@ -27,14 +27,11 @@ class ResultOdds():
         logger.info('地方競馬過去オッズ取得システム起動')
         line.send('地方競馬過去オッズ取得システム起動')
         logger.info('初期処理開始')
-        self.__latest_date = latest_date
-        self.__oldest_date = oldest_date
-        self.validation_check()
+        self.__oldest_date, self.__latest_date = validate.check('20100601', oldest_date, latest_date)
+        logger.info('日付のバリデーションチェック終了')
         self.__date = self.latest_date
         self.__url = URL()
         self.__output_type = output_type
-        logger.info(f'取得対象最古日:{jst.change_format(self.oldest_date, "%Y%m%d", "%Y/%m/%d")}')
-        logger.info(f'取得対象最新日:{jst.change_format(self.latest_date, "%Y%m%d", "%Y/%m/%d")} で処理を行います')
 
     @property
     def latest_date(self): return self.__latest_date
@@ -52,57 +49,6 @@ class ResultOdds():
     def oldest_date(self, oldest_date): self.__oldest_date = oldest_date
     @date.setter
     def date(self, date): self.__date = date
-
-    def validation_check(self):
-        '''日付の妥当性チェックを行う'''
-        logger.info('日付のバリデーションチェック開始')
-
-        # 日付フォーマットチェック
-        try:
-            tmp = datetime.strptime(self.oldest_date, '%Y%m%d')
-        except:
-            logger.warning('取得対象最古日の値が不正です')
-            logger.warning(f'取得対象最古日:{self.oldest_date}→2010/06/01 に変更します')
-            self.oldest_date = '20100601'
-
-        try:
-            tmp = datetime.strptime(self.latest_date, '%Y%m%d')
-        except:
-            logger.warning('取得対象最新日の値が不正です')
-            logger.warning(f'取得対象最新日:{self.latest_date}→{jst.change_format(jst.yesterday(), "%Y%m%d", "%Y/%m/%d")}に変更します')
-            self.latest_date = jst.yesterday()
-
-        # 日付妥当性チェック
-        if self.oldest_date < '20100601':
-            logger.warning('取得対象最古日の値が2010/06/01より前になっています')
-            logger.warning('2010/06/01以前のオッズデータは楽天競馬サイト内に存在しないため取得できません')
-            logger.warning(f'取得対象最古日:{self.oldest_date}→2010/06/01に変更します')
-            self.oldest_date = jst.yesterday()
-        elif self.oldest_date == jst.date():
-            logger.warning('エラーを起こす可能性が高いため本日のレースは取得できません')
-            logger.warning(f'取得対象最古日:{self.oldest_date}→{jst.change_format(jst.yesterday(), "%Y%m%d", "%Y/%m/%d")}に変更します')
-            self.oldest_date = jst.yesterday()
-        elif self.oldest_date > jst.date():
-            logger.warning('取得対象最古日の値が未来になっています')
-            logger.warning(f'取得対象最古日:{self.oldest_date}→{jst.change_format(jst.yesterday(), "%Y%m%d", "%Y/%m/%d")}に変更します')
-            self.oldest_date = jst.yesterday()
-
-        if self.latest_date == jst.date():
-            logger.warning('エラーを起こす可能性が高いため本日のレースは取得できません')
-            logger.warning(f'取得対象最新日:{self.latest_date}→{jst.change_format(jst.yesterday(), "%Y%m%d", "%Y/%m/%d")}に変更します')
-            self.latest_date = jst.yesterday()
-        elif self.latest_date > jst.date():
-            logger.warning('取得対象最新日の値が未来になっています')
-            logger.warning(f'取得対象最新日:{self.latest_date}→{jst.change_format(jst.yesterday(), "%Y%m%d", "%Y/%m/%d")}に変更します')
-            self.latest_date = jst.yesterday()
-
-        if self.latest_date < self.oldest_date:
-            logger.warning('取得対象最古日と最新日の記載順が逆のため入れ替えて処理を行います')
-            tmp = self.latest_date
-            self.latest_date = self.oldest_date
-            self.oldest_date = tmp
-
-        logger.info('日付のバリデーションチェック終了')
 
     def main(self):
         '''主処理、各メソッドの呼び出し'''
