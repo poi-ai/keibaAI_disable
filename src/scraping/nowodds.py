@@ -69,60 +69,51 @@ class NowOdds():
     def create_instance(self):
         '''インスタンスの生成を行う'''
 
-        if self.jra_flg:
-            try:
-                # 中央競馬用インスタンス作成
-                jra = nowjraodds.Jra()
-            except Exception as e:
-                self.error_output('中央_初期処理でエラー', e, traceback.format_exc())
-                self.jra_flg = False
+        # 中央競馬用インスタンス作成
+        try:
+            jra = nowjraodds.Jra()
+        except Exception as e:
+            self.error_output('中央_初期処理でエラー', e, traceback.format_exc())
+            self.jra_flg = False
 
         if not jra.kaisai:
             logger.info('中央_本日の開催はありません')
             self.jra_flg = False
 
-        if self.nar_flg:
-            try:
-                # 地方競馬用インスタンス作成
-                nar = nownarodds.Nar()
-            except Exception as e:
-                self.error_output('地方_初期処理でエラー', e, traceback.format_exc())
-                self.nar_flg = False
+        # 地方競馬用インスタンス作成
+        try:
+            nar = nownarodds.Nar()
+        except Exception as e:
+            self.error_output('地方_初期処理でエラー', e, traceback.format_exc())
+            self.nar_flg = False
 
         return jra, nar
 
     def continue_check(self):
         '''処理を続けるか(=全レース記録済みでないか)のチェックを行う'''
 
+        # 中央が全レース記録済かチェック
         if self.jra_flg:
-            try:
-                # 中央が全レース記録済かチェック
-                self.jra_flg = self.jra.continue_check()
-            except Exception as e:
-                self.error_output('中央_記録済みチェック処理でエラー', e, traceback.format_exc())
-                self.jra_flg = False
+            self.jra_flg = self.jra.continue_check()
 
+        # 地方が全レース記録済かチェック
         if self.nar_flg:
-            try:
-                # 地方が全レース記録済かチェック
-                self.nar_flg = self.nar.continue_check()
-            except Exception as e:
-                self.error_output('地方_記録済みチェック処理でエラー', e, traceback.format_exc())
-                self.nar_flg = False
+            self.nar_flg = self.nar.continue_check()
 
     def get_race_info(self):
         '''発走時刻に変更があった場合に更新を行う'''
+
+        # 中央発走時刻更新
         if self.jra_flg:
             try:
-                # 中央発走時刻更新
                 self.jra.get_race_info()
             except Exception as e:
                 self.error_output('中央_発走時刻更新処理でエラー', e, traceback.format_exc())
                 self.jra_flg = False
 
+        # 地方発走時刻更新
         if self.nar_flg:
             try:
-                # 地方発走時刻更新
                 self.nar.get_race_info()
             except Exception as e:
                 self.error_output('地方_発走時刻更新処理でエラー', e, traceback.format_exc())
@@ -133,9 +124,9 @@ class NowOdds():
         jra_wait_time = 99999999
         nar_wait_time = 99999999
 
+        # 中央の発走までの時間チェック
         if self.jra_flg:
             try:
-                # 中央の発走までの時間チェック
                 jra_wait_time =  self.jra.time_check(True)
                 logger.info(f'中央：次の記録時間まで{jra_wait_time}秒')
             except Exception as e:
@@ -144,9 +135,10 @@ class NowOdds():
         else:
             logger.info(f'中央の取得対象レースはありません')
 
+
+        # 地方の発走までの時間チェック
         if self.nar_flg:
             try:
-                # 地方の発走までの時間チェック
                 nar_wait_time = self.nar.time_check(True)
                 logger.info(f'地方：次の記録時間まで{nar_wait_time}秒')
             except Exception as e:
@@ -155,7 +147,7 @@ class NowOdds():
         else:
             logger.info(f'地方の取得対象レースはありません')
 
-        # どちらか一方の待機時間が0の場合はもう一方の待機時間に合わせる
+        # 0の場合は取得処理はすべて終了して出力待ちの状態なので、もう一方の待機時間に合わせる
         if jra_wait_time == 0 and nar_wait_time != 0:
             time_left = nar_wait_time
             # NARの取得対象レースのフラグ切り替え
@@ -195,17 +187,18 @@ class NowOdds():
 
     def get_select(self):
         '''取得対象レースを抽出し、オッズ取得を行う'''
+
+        # 暫定オッズ取得処理
         if self.jra_flg:
             try:
-                # 暫定オッズ取得処理
                 self.jra.get_select_realtime()
             except Exception as e:
                 self.error_output('中央_暫定オッズ取得処理でエラー', e, traceback.format_exc())
                 self.jra_flg = False
 
+        # 暫定オッズ取得処理
         if self.nar_flg:
             try:
-                # 暫定オッズ取得処理
                 self.nar.get_select_realtime()
             except Exception as e:
                 self.error_output('地方_暫定オッズ取得処理でエラー', e, traceback.format_exc())
@@ -213,17 +206,17 @@ class NowOdds():
 
         time.sleep(2)
 
+        # 確定オッズ取得処理
         if self.jra_flg:
             try:
-                # 暫定オッズ取得処理
                 self.jra.get_select_confirm()
             except Exception as e:
                 self.error_output('中央_確定オッズ取得処理でエラー', e, traceback.format_exc())
                 self.jra_flg = False
 
+        # 確定オッズ取得処理
         if self.nar_flg:
             try:
-                # 暫定オッズ取得処理
                 self.nar.get_select_confirm()
             except Exception as e:
                 self.error_output('地方_確定オッズ取得処理でエラー', e, traceback.format_exc())
@@ -231,6 +224,7 @@ class NowOdds():
 
     def record_odds(self):
         '''取得したオッズデータをCSVに書き出す'''
+
         # 記録データが格納されていてx分40秒を過ぎていなければCSV出力
         if int(jst.second()) <= 40:
             if self.jra_flg:

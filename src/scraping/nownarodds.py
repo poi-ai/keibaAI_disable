@@ -117,7 +117,6 @@ class Nar():
 
     def time_check(self, called = False):
         '''次のオッズ記録時間までの秒数を計算する
-
         Args:
             called(bool):別処理が同時に走っているか
 
@@ -125,6 +124,13 @@ class Nar():
             time_left(int):次の取得までの秒数(called = True時)
             flg(bool):待機時間後に次のオッズ取得時間か(called = Flase時)
         '''
+
+        # 23時～8時に動いていたら異常とみなし強制終了
+        if int(jst.hour()) <= 8 or 23 == int(jst.hour()):
+            logger.info('想定時間外に起動しているため強制終了します')
+            line.send('想定時間外に起動しているため強制終了します')
+            exit()
+
         logger.info('オッズ記録時間チェック処理開始')
         # 現在時刻取得
         NOW = jst.now()
@@ -371,32 +377,28 @@ if __name__ == '__main__':
         exit()
 
     while True:
-        try:
-            # 全レース記録済かチェック
-            if not nar.continue_check():
-                break
-        except Exception as e:
-            nar.error_output('記録済みチェック処理でエラー', e, traceback.format_exc())
-            exit()
+        # 全レース記録済かチェック
+        if not nar.continue_check():
+            break
 
         while True:
+            # 発走時刻更新
             try:
-                # 発走時刻更新
                 nar.get_race_info()
             except Exception as e:
                 nar.error_output('発走時刻更新処理でエラー', e, traceback.format_exc())
                 exit()
 
+            # 発走までの時間チェック待機
             try:
-                # 発走までの時間チェック待機
                 if nar.time_check():
                     break
             except Exception as e:
                 nar.error_output('発走時刻までの待機処理でエラー', e, traceback.format_exc())
                 exit()
 
+        # 暫定オッズ取得処理
         try:
-            # 暫定オッズ取得処理
             nar.get_select_realtime()
         except Exception as e:
             nar.error_output('暫定オッズ取得処理でエラー', e, traceback.format_exc())
@@ -404,8 +406,8 @@ if __name__ == '__main__':
 
         time.sleep(2)
 
+        # 確定オッズ取得処理
         try:
-            # 確定オッズ取得処理
             nar.get_select_confirm()
         except Exception as e:
             nar.error_output('確定オッズ取得処理でエラー', e, traceback.format_exc())
