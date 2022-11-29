@@ -188,39 +188,23 @@ class NowOdds():
     def get_select(self):
         '''取得対象レースを抽出し、オッズ取得を行う'''
 
-        # 暫定オッズ取得処理
+        # 中央_暫定オッズ取得処理
         if self.jra_flg:
-            try:
-                self.jra.get_select_realtime()
-            except Exception as e:
-                self.error_output('中央_暫定オッズ取得処理でエラー', e, traceback.format_exc())
-                self.jra_flg = False
+            self.jra.get_select_realtime()
 
-        # 暫定オッズ取得処理
+        # 地方_暫定オッズ取得処理
         if self.nar_flg:
-            try:
-                self.nar.get_select_realtime()
-            except Exception as e:
-                self.error_output('地方_暫定オッズ取得処理でエラー', e, traceback.format_exc())
-                self.nar_flg = False
+            self.nar.get_select_realtime()
 
         time.sleep(2)
 
-        # 確定オッズ取得処理
+        # 中央_確定オッズ取得処理
         if self.jra_flg:
-            try:
-                self.jra.get_select_confirm()
-            except Exception as e:
-                self.error_output('中央_確定オッズ取得処理でエラー', e, traceback.format_exc())
-                self.jra_flg = False
+            self.jra.get_select_confirm()
 
-        # 確定オッズ取得処理
+        # 地方_確定オッズ取得処理
         if self.nar_flg:
-            try:
-                self.nar.get_select_confirm()
-            except Exception as e:
-                self.error_output('地方_確定オッズ取得処理でエラー', e, traceback.format_exc())
-                self.nar_flg = False
+            self.nar.get_select_confirm()
 
     def record_odds(self):
         '''取得したオッズデータをCSVに書き出す'''
@@ -229,19 +213,11 @@ class NowOdds():
         if int(jst.second()) <= 40:
             if self.jra_flg:
                 if len(self.jra.write_data) != 0:
-                    try:
-                        self.jra.record_odds()
-                    except Exception as e:
-                        self.error_output('中央_CSV出力処理でエラー', e, traceback.format_exc())
-                        self.jra_flg = False
+                    self.jra.record_odds()
 
             if self.nar_flg:
                 if len(self.nar.write_data) != 0:
-                    try:
-                        self.nar.record_odds()
-                    except Exception as e:
-                        self.error_output('地方_CSV出力処理でエラー', e, traceback.format_exc())
-                        self.nar_flg = False
+                    self.nar.record_odds()
 
     def error_output(self, message, e, stacktrace):
         '''エラー時のログ出力/LINE通知を行う

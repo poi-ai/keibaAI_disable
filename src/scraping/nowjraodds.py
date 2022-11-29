@@ -356,7 +356,12 @@ class Jra():
         # 暫定オッズを取得
         for race in self.race_info:
             if race.record_flg == '1':
-                self.get_odds(race)
+                try:
+                    self.get_odds(race)
+                except Exception as e:
+                    self.error_output(f'中央_暫定オッズ取得処理でエラー\n{babacodechange.jra(race.baba_code)}{race.race_no}R', e, traceback.format_exc())
+                    race.record_flg = '0'
+                    continue
                 race.record_flg = '3'
                 get_count += 1
 
@@ -369,7 +374,12 @@ class Jra():
 
         for race in self.race_info:
             if race.record_flg == '2':
-                self.get_odds(race)
+                try:
+                    self.get_odds(race)
+                except Exception as e:
+                    self.error_output(f'中央_確定オッズ取得処理でエラー\n{babacodechange.jra(race.baba_code)}{race.race_no}R', e, traceback.format_exc())
+                    race.record_flg = '-1'
+                    continue
                 race.record_flg = '4'
                 time.sleep(3)
 
@@ -421,8 +431,13 @@ class Jra():
 
     def record_odds(self):
         '''取得したオッズをCSV/Google Spread Sheetに出力する'''
+
         # CSVに出力する
-        output.csv(self.write_data, f'jra_resultodds_{jst.year()}{jst.zmonth()}')
+        try:
+            output.csv(self.write_data, f'jra_resultodds_{jst.year()}{jst.zmonth()}')
+        except Exception as e:
+            self.error_output('オッズ出力処理でエラー', e, traceback.format_exc())
+
         # TODO Google Spread Sheetに出力
         # writesheet.write_spread_sheet(self.write_data, jst.month().zfill(2))
 
@@ -559,28 +574,16 @@ if __name__ == '__main__':
                 exit()
 
         # 暫定オッズ取得処理
-        try:
-            jra.get_select_realtime()
-        except Exception as e:
-            jra.error_output('暫定オッズ取得処理でエラー', e, traceback.format_exc())
-            exit()
+        jra.get_select_realtime()
 
         time.sleep(2)
 
         # 確定オッズ取得処理
-        try:
-            jra.get_select_confirm()
-        except Exception as e:
-            jra.error_output('確定オッズ取得処理でエラー', e, traceback.format_exc())
-            exit()
+        jra.get_select_confirm()
 
         # 記録データが格納されていてx分40秒を過ぎていなければCSV出力
         if int(jst.second()) <= 40 and len(jra.write_data) != 0:
-            try:
-                jra.record_odds()
-            except Exception as e:
-                jra.error_output('オッズ出力処理でエラー', e, traceback.format_exc())
-                exit()
+            jra.record_odds()
 
     logger.info('中央競馬オッズ記録システム終了')
     line.send('中央競馬オッズ記録システム終了')

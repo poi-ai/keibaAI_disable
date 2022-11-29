@@ -226,8 +226,13 @@ class Nar():
 
     def record_odds(self):
         '''取得したオッズをCSV/Google Spread Sheetに出力する'''
+
         # CSVに出力する
-        output.csv(self.write_data, f'nar_resultodds_{jst.year()}{jst.zmonth()}')
+        try:
+            output.csv(self.write_data, f'nar_resultodds_{jst.year()}{jst.zmonth()}')
+        except Exception as e:
+            self.error_output('オッズ出力処理でエラー', e, traceback.format_exc())
+
         # TODO Google Spread Sheetに出力
         # writesheet.write_spread_sheet(self.write_data, jst.month().zfill(2))
 
@@ -268,7 +273,11 @@ class Nar():
         # 暫定オッズを先に取得
         for race in self.race_info:
             if race.record_flg == '1':
-                self.get_odds(race)
+                try:
+                    self.get_odds(race)
+                except Exception as e:
+                    self.error_output(f'地方_暫定オッズ取得処理でエラー\n{babacodechange.keibago(race.baba_code)}{race.race_no.zfill(2)}R', e, traceback.format_exc())
+                    race.record_flg = '0'
                 race.record_flg = '3'
                 get_count += 1
 
@@ -281,7 +290,12 @@ class Nar():
 
         for race in self.race_info:
             if race.record_flg == '2':
-                self.get_odds(race)
+                try:
+                    self.get_odds(race)
+                except Exception as e:
+                    self.error_output(f'地方_確定オッズ取得処理でエラー\n{babacodechange.keibago(race.baba_code)}{race.race_no.zfill(2)}R', e, traceback.format_exc())
+                    race.record_flg = '-1'
+                    continue
                 race.record_flg = '4'
                 time.sleep(3)
 
@@ -398,28 +412,16 @@ if __name__ == '__main__':
                 exit()
 
         # 暫定オッズ取得処理
-        try:
-            nar.get_select_realtime()
-        except Exception as e:
-            nar.error_output('暫定オッズ取得処理でエラー', e, traceback.format_exc())
-            exit()
+        nar.get_select_realtime()
 
         time.sleep(2)
 
         # 確定オッズ取得処理
-        try:
-            nar.get_select_confirm()
-        except Exception as e:
-            nar.error_output('確定オッズ取得処理でエラー', e, traceback.format_exc())
-            exit()
+        nar.get_select_confirm()
 
         # 記録データが格納されていてx分40秒を過ぎていなければCSV出力
         if int(jst.second()) <= 40 and len(nar.write_data) != 0:
-            try:
-                nar.record_odds()
-            except Exception as e:
-                nar.error_output('オッズ出力処理でエラー', e, traceback.format_exc())
-                exit()
+            nar.record_odds()
 
     logger.info('地方競馬オッズ記録システム終了')
     line.send('地方競馬オッズ記録システム終了')
