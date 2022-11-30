@@ -1,12 +1,10 @@
 import itertools
-import pandas as pd
 import package
-import re
-import json
+import pastnarracedata
 import sys
 import time
 import traceback
-from common import babacodechange, logger, jst, output, soup as Soup, line, validate
+from common import logger, jst, soup as Soup, line, validate
 from datetime import datetime, timedelta
 from tqdm import tqdm
 
@@ -18,7 +16,6 @@ class RaceData():
         oldest_date(str) : 取得対象の最も古い日付(yyyyMMdd)
                           デフォルト : 20150225(閲覧可能な最古の日付)
         date(list<str>) : 取得対象の日付(yyyyMMdd)
-        url(URL) : netkeibaサイト内のURL一覧
         output_type(str) : 出力ファイルを分割
                            m : 月ごと(デフォルト)、y : 年ごと、a : 全ファイルまとめて
     '''
@@ -29,15 +26,12 @@ class RaceData():
         logger.info('初期処理開始')
         self.__oldest_date, self.__latest_date = validate.check('20150225', oldest_date, latest_date)
         logger.info('日付のバリデーションチェック終了')
-        self.__url = URL()
         self.__output_type = output_type
 
     @property
     def latest_date(self): return self.__latest_date
     @property
     def oldest_date(self): return self.__oldest_date
-    @property
-    def url(self): return self.__url
     @property
     def output_type(self): return self.__output_type
     @latest_date.setter
@@ -71,8 +65,8 @@ class RaceData():
 
             # 開催IDからレースIDを取得
             for hold_id in hold_id_list:
+                # 指定日に行われる全レースのレースIDの取得
                 try:
-                    # 指定日に行われる全レースのレースIDの取得
                     race_id_list = self.get_race_id(date, hold_id)
                 except Exception as e:
                     self.error_output('レースURL取得処理でエラー', e, traceback.format_exc())
@@ -80,8 +74,8 @@ class RaceData():
 
             # レースIDからレース情報を取得する
             for race_id in race_id_list:
-                # TODO レース情報取得処理メソッド呼び出し
-                pass
+                race_data = pastnarracedata.GetRaceData(race_id, self.output_type)
+                race_data.main()
 
             time.sleep(3)
 
@@ -173,31 +167,6 @@ class RaceData():
 
         return race_id_list
 
-    # TODO ここにレースデータ抽出処理
-
-    def record_odds(self, date, race_id, odds):
-        '''オッズデータにレース情報を付加して出力する
-            TODO 流用できるなら流用 使えないなら削除
-        '''
-
-        # レース情報を頭数分用意する
-        info = [[date, race_id[4:6], race_id[10:]] for _ in range(len(odds))]
-
-        write_df = pd.concat([pd.DataFrame(info, index = odds.index), pd.DataFrame(odds.index, index = odds.index), odds], axis=1)
-
-        write_df.columns = ['発走日', '競馬場コード', 'レース番号', '馬番', '単勝オッズ', '複勝オッズ下限', '複勝オッズ上限']
-
-        # CSVに出力
-        if self.output_type == 'a':
-            # 一つのファイルに出力
-            output.csv(write_df, 'jra_resultodds')
-        elif self.output_type == 'y':
-            # 年ごとにファイルを分割
-            output.csv(write_df, f'jra_resultodds_{date[:4]}')
-        else:
-            # 月ごとにファイルを分割
-            output.csv(write_df, f'jra_resultodds_{date[:6]}')
-
     def error_output(self, message, e, stacktrace):
         '''エラー時のログ出力/LINE通知を行う
         Args:
@@ -211,15 +180,6 @@ class RaceData():
         line.send(message)
         line.send(e)
         line.send(stacktrace)
-
-class URL():
-    '''netkeibaの各ページのURL'''
-    # レースリンク一覧 TODO
-    RESULTS = 'https://db.netkeiba.com/race/list/'
-    # レース情報 TODO
-    RACE = 'https://db.netkeiba.com/race/'
-    # 日別レース一覧ページ
-    RACE_LIST_URL = 'https://race.netkeiba.com/top/race_list_sub.html'
 
 if __name__ == '__main__':
     # ログ用インスタンス作成
