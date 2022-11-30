@@ -1,6 +1,6 @@
-import datetime
 import logger as lg
 from common import jst
+from datetime import datetime
 
 # エラー回避用ログインスタンス作成
 logger = lg.Logger()

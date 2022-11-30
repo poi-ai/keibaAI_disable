@@ -204,10 +204,10 @@ class GetRaceData():
         if 'Icon_GradeType14' in str(race_name):
             self.race_info.grade += '待選'
 
-        self.race_info.horse_num = race_data_list[5].replace('頭', '')
+        self.race_info.horse_num = race_data_list[6].replace('頭', '')
 
         # レース賞金
-        prize = re.search('本賞金:(.+)、(.+)、(.+)、(.+)、(.+)万円', race_data_list[7])
+        prize = re.search('本賞金:(.+)、(.+)、(.+)、(.+)、(.+)万円', race_data_list[8])
         self.race_info.first_prize = prize.groups()[0]
         self.race_info.second_prize = prize.groups()[1]
         self.race_info.third_prize = prize.groups()[2]
@@ -254,7 +254,7 @@ class GetRaceData():
 
             # 調教師・調教師所属
             trainer = info.find('dt', class_ = 'Horse05').text.split('・')
-            horse_race_info.trainer_belong = trainer[0]
+            horse_race_info.trainer_belong = wordchange.rm(trainer[0])
             horse_race_info.trainer = trainer[1]
 
             # netkeiba独自の調教師ID
@@ -319,7 +319,7 @@ class GetRaceData():
             if m != None:
                 horse_race_info.gender = m.groups()[0]
                 horse_race_info.age = m.groups()[1]
-                self.hair_color = m.groups()[2]
+                horse_char_info.hair_color = m.groups()[2]
 
             # 騎手名・netkeiba独自の騎手ID
             # TODO 騎手ID未存在時、騎手名だけ
@@ -424,25 +424,30 @@ class GetRaceData():
 
         # race_infoを出力
         race_info_df = pd.DataFrame.from_dict(vars(self.race_info), orient='index').T
+        race_info_df.columns = [column.replace('_RaceInfo__', '') for column in race_info_df.columns]
         output.csv(race_info_df, f'race_info{filename_tail}')
 
         # TODO 空対策
         # horse_race_info_dictを出力
         horse_race_info_df = pd.concat([pd.DataFrame.from_dict(vars(df), orient='index').T for df in self.horse_race_info_dict.values()])
+        horse_race_info_df.columns = [column.replace('_HorseRaceInfo__', '') for column in horse_race_info_df.columns]
         output.csv(horse_race_info_df, f'horse_race_info{filename_tail}')
 
         # horse_char_info_dictを出力
         horse_char_info_df = pd.concat([pd.DataFrame.from_dict(vars(df), orient='index').T for df in self.horse_char_info_dict.values()])
+        horse_char_info_df.columns = [column.replace('_HorseCharInfo__', '') for column in horse_char_info_df.columns]
         output.csv(horse_char_info_df, f'horse_char_info{filename_tail}')
 
         # TODO 空対策
         # race_progress_infoを出力
         race_progress_info_df = pd.DataFrame.from_dict(vars(self.race_progress_info), orient='index').T
+        race_progress_info_df.columns = [column.replace('_RaceProgressInfo__', '') for column in race_progress_info_df.columns]
         output.csv(race_progress_info_df, f'race_progress_info{filename_tail}')
 
         # TODO 空対策
         # horse_char_info_dictを出力
         horse_result_df = pd.concat([pd.DataFrame.from_dict(vars(df), orient='index').T for df in self.horse_result_dict.values()])
+        horse_result_df.columns = [column.replace('_HorseResult__', '') for column in horse_result_df.columns]
         output.csv(horse_result_df, f'horse_result{filename_tail}')
 
     def frame_no_culc(self, horse_num, horse_no):
