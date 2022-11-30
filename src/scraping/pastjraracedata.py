@@ -1,58 +1,61 @@
-import output
-import lxml
 import numpy as np
-import requests
-import time
 import pandas as pd
 import re
-from bs4 import BeautifulSoup
+from common import output, soup as Soup, wordchange
 
-def url(type):
-    # 馬柱
-    if type == 'UMABASHIRA_URL':
-        return f'https://race.netkeiba.com/race/shutuba_past.html?race_id={RACE_ID}'
-    # リアルタイム レース結果
-    elif type == 'RACE_RESULT_URL':
-        return f'https://race.netkeiba.com/race/result.html?race_id={RACE_ID}'
-    # DB レース結果
-    elif type == 'DB_RESULT_URL':
-        return f'https://db.netkeiba.com/race/{RACE_ID}'
+class GetRaceData():
+    '''netkeibaのサイトから中央競馬の過去レースデータを取得する
 
-    return False
+    Instance Parameter:
+        race_id(str) : 取得対象レースのnetkeiba独自ID
+        baba_id(str) : レースが行われる競馬場のnetkeiba独自ID
+        race_date(str) : レース開催日(yyyyMMdd型)
+        race_no(str) : レース番号(0埋め2桁)
+        race_info(RaceInfo) : 発走前のレースデータ
+        horse_race_info_dict(dict{horse_no(str): HorseRaceInfo, ...}) : 各馬のレースのデータ
+        horse_char_info_dict(dict{horse_no(str): HorseCharInfo, ...}) : 各馬固有のデータ
+        race_progress_info(RaceProgressInfo): レース全体のデータ
+        horse_result_dict(dict{horse_no(str): HorseResult, ...}) : 各馬のレース結果データ
+        output_type(str) : 出力ファイルを分割
+                           m : 月ごと(デフォルト)、y : 年ごと、a : 全ファイルまとめて
+    '''
+
+    def __init__(self, race_id, output_type = 'm'):
+        self.race_id = race_id
+        self.output_type = output_type
+
+    # getter
+    @property
+    def race_id(self): return self.__race_id
+    @property
+    def output_type(self): return self.__output_type
+
+    # setter
+    @race_id.setter
+    def race_id(self, race_id): self.__race_id = race_id
+    @output_type.setter
+    def output_type(self, output_type): self.__output_type = output_type
 
     '''
     MEMO
     * レース前に実際に取れるのは馬柱のみなので、レース情報などは馬柱から取得する
     * 騎手減量がリアルタイム レース結果からしか取得できないので要検討
     '''
-def main():
-    global RACE_ID
-    # 共通(PKになる)レースデータ
-    common_info = CommonInfo()
+    def main(self):
+        global RACE_ID
+        # 共通(PKになる)レースデータ
+        common_info = CommonInfo()
 
-    # TODO 開催日、実装時はインスタンス変数
-    common_info.race_date = KAISAI_DATE
-    common_info.race_no = RACE_ID[-2:]
-    common_info.baba_code = RACE_ID[4:6]
+        # TODO 開催日、実装時はインスタンス変数
+        #common_info.race_date = KAISAI_DATE
+        #common_info.race_no = RACE_ID[-2:]
+        #common_info.baba_code = RACE_ID[4:6]
 
-    if not LOCAL and GET_FILE:
-        id_list = get_race_id()
-
-        for id in id_list:
-            # レースIDをセット
-            RACE_ID = str(id).replace('\n', '')
-
-            # レース結果(DB)からデータ取得
-            # horse_dict = get_result()
-
-            # 馬柱からデータ取得 TODO 引数はインスタンス変数に
-            get_umabashira(horse_dict)
-    else:
         # レース結果(DB)からデータ取得
-        horse_dict = get_result()
+        horse_dict = self.get_result()
 
         # 馬柱からデータ取得
-        horse_dict, race_info = get_umabashira(horse_dict)
+        horse_dict, race_info = self.get_umabashira(horse_dict)
 
         # インスタンス変数確認用
         for dict in horse_dict:
@@ -67,332 +70,292 @@ def main():
         df = pd.DataFrame.from_dict(vars(race_info), orient='index').T
         output.csv(df, 'race_info')
 
-def get_race_id():
-    f = open('race_id.txt', 'r')
-    id_list = [id for id in f]
-    f.close()
-    return id_list
+    def get_umabashira(self, horse_dict):
+        # TODO 実運用のhorse_dictはインスタンス変数(self)から引っ張る
 
-def get_umabashira(horse_dict):
-    # 実運用のhorse_dictはインスタンス変数(self)から引っ張る
+        # 馬柱からデータを取得
+        soup = Soup.get_soup(f'https://race.netkeiba.com/race/shutuba_past.html?race_id={RACE_ID}')
 
-    # 馬柱からデータを取得
-    if LOCAL:
-        f = open('umabashira_sjis.txt', 'r')
-        html = f.read()
-        f.close()
-        soup = BeautifulSoup(html, 'lxml')
-    else:
-        soup = Soup(url('UMABASHIRA_URL'))
+        # レース情報格納用データクラス
+        race_info = RaceInfo()
 
-    # レース情報格納用データクラス
-    race_info = RaceInfo()
+        # コース情報や状態を抽出
+        race_data_01 = soup.find('div', class_ = 'RaceData01')
+        race_data_list = wordchange.rm(race_data_01.text).split('/')
 
-    # コース情報や状態を抽出
-    race_data_01 = soup.find('div', class_ = 'RaceData01')
-    race_data_list = rm(race_data_01.text).split('/')
+        race_info.race_time = race_data_list[0].replace('発走', '')
 
-    race_info.race_time = race_data_list[0].replace('発走', '')
+        course = re.search('([芝|ダ|障])(\d+)m\((.*)\)', race_data_list[1])
+        race_info.distance = course.groups()[1]
 
-    course = re.search('([芝|ダ|障])(\d+)m\((.*)\)', race_data_list[1])
-    race_info.distance = course.groups()[1]
+        if course.groups()[0] == '障':
+            race_info.race_type = '障'
 
-    if course.groups()[0] == '障':
-        race_info.race_type = '障'
-
-        baba = course.groups()[2]
-        if '芝' in baba:
-            if 'ダート' in baba:
-                race_info.baba = '芝ダ'
-                race_info.glass_condition = race_data_list[3].replace('馬場:', '')
-                if len(race_data_list) == 5:
-                    race_info.dirt_condition = race_data_list[4].replace('馬場:', '')
+            baba = course.groups()[2]
+            if '芝' in baba:
+                if 'ダート' in baba:
+                    race_info.baba = '芝ダ'
+                    race_info.glass_condition = race_data_list[3].replace('馬場:', '')
+                    if len(race_data_list) == 5:
+                        race_info.dirt_condition = race_data_list[4].replace('馬場:', '')
+                else:
+                    race_info.baba = '芝'
+                    race_info.glass_condition = race_data_list[3].replace('馬場:', '')
             else:
-                race_info.baba = '芝'
+                race_info.baba = 'ダ'
+                race_info.dirt_condition = race_data_list[3].replace('馬場:', '')
+
+            around = re.sub(r'[芝ダート]', '', baba)
+            if len(around) != 0:
+                race_info.in_out = around
+
+        else:
+            race_info.race_type = '平'
+
+            baba = course.groups()[0]
+            race_info.baba = baba
+            if baba == '芝':
                 race_info.glass_condition = race_data_list[3].replace('馬場:', '')
-        else:
-            race_info.baba = 'ダ'
-            race_info.dirt_condition = race_data_list[3].replace('馬場:', '')
+            elif baba == 'ダ':
+                race_info.dirt_condition = race_data_list[3].replace('馬場:', '')
 
-        around = re.sub(r'[芝ダート]', '', baba)
-        if len(around) != 0:
-            race_info.in_out = around
-
-    else:
-        race_info.race_type = '平'
-
-        baba = course.groups()[0]
-        race_info.baba = baba
-        if baba == '芝':
-            race_info.glass_condition = race_data_list[3].replace('馬場:', '')
-        elif baba == 'ダ':
-            race_info.dirt_condition = race_data_list[3].replace('馬場:', '')
-
-        around = course.groups()[2]
-        if around == '直線':
-            race_info.around = '直'
-        else:
-            race_info.around = around[0]
-            if len(around) != 1:
-                race_info.in_out = around[1:]
-
-    race_info.weather = race_data_list[2].replace('天候:', '')
-
-    # 出走条件等の抽出
-    race_data_02 = soup.find('div', class_ = 'RaceData02')
-    race_data_list = race_data_02.text.split('\n')
-
-    race_info.hold_no = race_data_list[1].replace('回', '')
-    race_info.hold_date = race_data_list[3].replace('日目', '')
-    race_info.require_age = half(race_data_list[4]).replace('サラ系', '').replace('障害', '')
-    race_info.race_class = half(race_data_list[5])
-
-    race_name = soup.find('div', class_ = 'RaceName')
-    race_info.race_name = race_name.text.replace('\n', '')
-
-    # CSSからクラスチェック、13はWIN5
-    if 'Icon_GradeType1"' in str(race_name):
-        race_info.grade = 'GI'
-    elif 'Icon_GradeType2' in str(race_name):
-        race_info.grade = 'GII'
-    elif 'Icon_GradeType3' in str(race_name):
-        race_info.grade = 'GIII'
-    elif 'Icon_GradeType4' in str(race_name):
-        race_info.grade = '重賞'
-    elif 'Icon_GradeType5' in str(race_name):
-        race_info.grade = 'OP'
-    elif 'Icon_GradeType6' in str(race_name):
-        race_info.grade = '1600万下'
-    elif 'Icon_GradeType7' in str(race_name):
-        race_info.grade = '1000万下'
-    elif 'Icon_GradeType8' in str(race_name):
-        race_info.grade = '900万下'
-    elif 'Icon_GradeType9' in str(race_name):
-        race_info.grade = '500万下'
-    elif 'Icon_GradeType10' in str(race_name):
-        race_info.grade = 'JGI'
-    elif 'Icon_GradeType11' in str(race_name):
-        race_info.grade = 'JGII'
-    elif 'Icon_GradeType12' in str(race_name):
-        race_info.grade = 'JGIII'
-    elif 'Icon_GradeType15' in str(race_name):
-        race_info.grade = 'L'
-    elif 'Icon_GradeType16' in str(race_name):
-        race_info.grade = '3勝'
-    elif 'Icon_GradeType17' in str(race_name):
-        race_info.grade = '2勝'
-    elif 'Icon_GradeType18' in str(race_name):
-        race_info.grade = '1勝'
-
-    # TODO 待選とは何か確認
-    if 'Icon_GradeType14' in str(race_name):
-        race_info.grade += '待選'
-
-    require = race_data_list[6]
-    if '(国際)' in require:
-        race_info.require_country = '国'
-    elif '(混)' in require:
-        race_info.require_country = '混'
-
-    if '牡・牝' in require:
-        race_info.require_gender = '牡牝'
-    elif '牝' in require:
-        race_info.require_gender = '牝'
-
-    if '九州産馬' in require:
-        race_info.require_local = '1'
-
-    if '見習騎手' in require:
-        race_info.require_beginner_jockey = '1'
-
-    if '(指)' in require:
-        race_info.require_local = 'マル指'
-    elif '(特指)' in require:
-        race_info.require_local = '特指'
-    elif '指' in require:
-        race_info.require_local = 'カク指'
-
-    # TODO 別定/ハンデ戦はより詳細に分類できるかチェック
-    race_info.load_kind = race_data_list[7]
-    race_info.horse_num = race_data_list[8].replace('頭', '')
-
-    prize = re.search('本賞金:(\d+),(\d+),(\d+),(\d+),(\d+)万円', race_data_list[10])
-    race_info.first_prize = prize.groups()[0]
-    race_info.second_prize = prize.groups()[1]
-    race_info.third_prize = prize.groups()[2]
-    race_info.fourth_prize = prize.groups()[3]
-    race_info.fifth_prize = prize.groups()[4]
-
-    # 各馬の情報(TODO レース結果で取得したものと合体)
-    # horse_info = HorseInfo()
-
-    fc = soup.select('div[class="fc"]')
-
-    for info in fc:
-        horse_info = ''
-
-        horse_type = info.find('div', class_ = 'Horse02')
-
-        # 馬番(キー)から設定するdictを選択
-        for horse in horse_dict:
-            if horse_dict[horse][0].horse_name == rm(horse_type.text):
-                horse_info = horse_dict[horse][0]
-
-        horse_info.father = info.find('div', class_ = 'Horse01').text
-
-        # TODO マル/カクの違いはレース種別の違いだけなので、種類は地/外だけにするか要検討
-        # TODO パラメータをbelongに統一するかも要検討
-        if 'Icon_MaruChi' in str(horse_type):
-            horse_info.belong = 'マル地'
-        elif 'Icon_kakuChi' in str(horse_type):
-            horse_info.belong = 'カク地'
-        elif 'Icon_MaruGai' in str(horse_type):
-            horse_info.country = 'マル外'
-        elif 'Icon_KakuGai' in str(horse_type):
-            horse_info.country = 'カク外'
-
-        if '<span class="Mark">B</span>' in str(horse_type):
-            horse_info.blinker = '1'
-
-        horse_info.mother = info.find('div', class_ = 'Horse03').text
-        horse_info.grandfather = info.find('div', class_ = 'Horse04').text.replace('(', '').replace(')', '')
-
-        blank = info.find('div', class_ = 'Horse06').text
-        if blank == '連闘':
-            horse_info.blank = '0'
-        else:
-            blank_week = re.search('中(\d+)週', blank)
-            # 初出走判定
-            if blank_week == None:
-                horse_info.blank = '-1'
+            around = course.groups()[2]
+            if around == '直線':
+                race_info.around = '直'
             else:
-                horse_info.blank = prize.groups()[0]
+                race_info.around = around[0]
+                if len(around) != 1:
+                    race_info.in_out = around[1:]
 
-        running_type = str(info.find('div', class_ = 'Horse06'))
-        if 'horse_race_type00' in running_type:
-            horse_info.running_type = '未'
-        elif 'horse_race_type01' in running_type:
-            horse_info.running_type = '逃'
-        elif 'horse_race_type02' in running_type:
-            horse_info.running_type = '先'
-        elif 'horse_race_type03' in running_type:
-            horse_info.running_type = '差'
-        elif 'horse_race_type04' in running_type:
-            horse_info.running_type = '追'
-        elif 'horse_race_type05' in running_type:
-            horse_info.running_type = '自在'
+        race_info.weather = race_data_list[2].replace('天候:', '')
 
-    hair_colors = soup.find_all('span', class_ = 'Barei')
-    for i, hair_color in enumerate(hair_colors):
-        m = re.search('.\d(.+)', hair_color.text)
-        # 別の箇所でも使われているクラスなので判定が必要
-        if m == None:
-            break
-        else:
-            horse_dict[i + 1][0].hair_color = m.groups()[0]
+        # 出走条件等の抽出
+        race_data_02 = soup.find('div', class_ = 'RaceData02')
+        race_data_list = race_data_02.text.split('\n')
 
-    # 実運用ではクラス化するため、返り値なしでインスタンス変数へ代入
-    return horse_dict, race_info
+        race_info.hold_no = race_data_list[1].replace('回', '')
+        race_info.hold_date = race_data_list[3].replace('日目', '')
+        race_info.require_age = wordchange.full_to_half(race_data_list[4]).replace('サラ系', '').replace('障害', '')
+        race_info.race_class = wordchange.full_to_half(race_data_list[5])
 
-def get_result():
-    # レース結果(HTML全体)
-    if LOCAL:
-        f = open('db_sjis.txt', 'r')
-        html = f.read()
-        f.close()
-        soup = BeautifulSoup(html, 'lxml')
-    else:
-        soup = Soup(url('DB_RESULT_URL'))
+        race_name = soup.find('div', class_ = 'RaceName')
+        race_info.race_name = race_name.text.replace('\n', '')
 
-    # レース結果(結果テーブル)
-    tables = Table(soup)
-    table = tables[0]
+        # CSSからクラスチェック、13はWIN5
+        if 'Icon_GradeType1"' in str(race_name):
+            race_info.grade = 'GI'
+        elif 'Icon_GradeType2' in str(race_name):
+            race_info.grade = 'GII'
+        elif 'Icon_GradeType3' in str(race_name):
+            race_info.grade = 'GIII'
+        elif 'Icon_GradeType4' in str(race_name):
+            race_info.grade = '重賞'
+        elif 'Icon_GradeType5' in str(race_name):
+            race_info.grade = 'OP'
+        elif 'Icon_GradeType6' in str(race_name):
+            race_info.grade = '1600万下'
+        elif 'Icon_GradeType7' in str(race_name):
+            race_info.grade = '1000万下'
+        elif 'Icon_GradeType8' in str(race_name):
+            race_info.grade = '900万下'
+        elif 'Icon_GradeType9' in str(race_name):
+            race_info.grade = '500万下'
+        elif 'Icon_GradeType10' in str(race_name):
+            race_info.grade = 'JGI'
+        elif 'Icon_GradeType11' in str(race_name):
+            race_info.grade = 'JGII'
+        elif 'Icon_GradeType12' in str(race_name):
+            race_info.grade = 'JGIII'
+        elif 'Icon_GradeType15' in str(race_name):
+            race_info.grade = 'L'
+        elif 'Icon_GradeType16' in str(race_name):
+            race_info.grade = '3勝'
+        elif 'Icon_GradeType17' in str(race_name):
+            race_info.grade = '2勝'
+        elif 'Icon_GradeType18' in str(race_name):
+            race_info.grade = '1勝'
 
-    # 箱用意{馬番:[HorseInfo, HorseResult]}
-    horse_dict = {i: [HorseInfo(), HorseResult()] for i in table['馬番']}
+        # TODO 待選とは何か確認
+        if 'Icon_GradeType14' in str(race_name):
+            race_info.grade += '待選'
 
-    # 1着馬の馬番
-    winner_horse_no = 0
+        require = race_data_list[6]
+        if '(国際)' in require:
+            race_info.require_country = '国'
+        elif '(混)' in require:
+            race_info.require_country = '混'
 
-    # 行ごとに切り出し
-    # TODO 除外・取消馬の処理
-    for i, index in enumerate(table.index):
-        row = table.loc[index]
+        if '牡・牝' in require:
+            race_info.require_gender = '牡牝'
+        elif '牝' in require:
+            race_info.require_gender = '牝'
 
-        # キーになる馬番を先に取得
-        no = row['馬番']
+        if '九州産馬' in require:
+            race_info.require_local = '1'
 
-        # 馬の情報の各項目を設定
-        horse_dict[no][0].frame_no = row['枠番']
-        horse_dict[no][0].horse_no = row['馬番']
-        horse_dict[no][0].horse_name = row['馬名']
-        # 頭1文字が性別、2文字目以降が年齢
-        horse_dict[no][0].gender = row['性齢'][0]
-        horse_dict[no][0].age = row['性齢'][1:]
-        horse_dict[no][0].load = row['斤量']
-        horse_dict[no][0].jockey = row['騎手']
-        horse_dict[no][0].win_odds = row['単勝']
-        horse_dict[no][0].popular = row['人気']
-        # 括弧内が増減、外が馬体重
-        weight = re.search('(\d+)\((.+)\)', row['馬体重'])
-        # 馬体重不明チェック(新馬・前走計不時は増減は0と表記)
-        if weight == None:
-            horse_dict[no][0].weight = -1
-            horse_dict[no][0].weight_change = -999
-        else:
-            horse_dict[no][0].weight = weight.groups()[0]
-            horse_dict[no][0].weight_change = weight.groups()[1].replace('±', '').replace('+', '')
-        # 調教師チェック[東]美浦、[西]栗東
-        trainer = re.search('\[(.+)\] (.+)', row['調教師'])
-        if trainer == None:
-            horse_dict[no][0].trainer_belong = '-'
-            horse_dict[no][0].trainer = '-'
-        else:
-            horse_dict[no][0].trainer_belong = trainer.groups()[0]
-            horse_dict[no][0].trainer = trainer.groups()[1]
-        horse_dict[no][0].horse_no = row['馬番']
-        horse_dict[no][0].owner = row['馬主']
+        if '見習騎手' in require:
+            race_info.require_beginner_jockey = '1'
 
-        # レース結果の各項目を設定
-        horse_dict[no][1].horse_no = row['馬番']
-        horse_dict[no][1].rank = row['着順']
-        horse_dict[no][1].goal_time = row['タイム']
-        # 着差、1着馬は2着との差をマイナスに
-        if i == 0:
-            winner_horse_no = no
-        elif i == 1:
-            horse_dict[winner_horse_no][1].diff = '-' + str(row['着差'])
-            horse_dict[no][1].diff = row['着差']
-        else:
-            horse_dict[no][1].diff = row['着差']
-        horse_dict[no][1].pass_rank = row['通過']
-        horse_dict[no][1].agari = row['上り']
-        if not np.isnan(row['賞金(万円)']):
-            horse_dict[no][1].prize = row['賞金(万円)']
+        if '(指)' in require:
+            race_info.require_local = 'マル指'
+        elif '(特指)' in require:
+            race_info.require_local = '特指'
+        elif '指' in require:
+            race_info.require_local = 'カク指'
 
-    return horse_dict
+        # TODO 別定/ハンデ戦はより詳細に分類できるかチェック
+        race_info.load_kind = race_data_list[7]
+        race_info.horse_num = race_data_list[8].replace('頭', '')
 
-def Soup(URL):
-    # URL = 'https://db.netkeiba.com/race/202204020206/'
-    # 馬柱 https://race.netkeiba.com/race/shutuba.html?race_id=202204020206
-    r = requests.get(URL)
-    time.sleep(3)
-    return BeautifulSoup(r.content, 'lxml')
+        prize = re.search('本賞金:(\d+),(\d+),(\d+),(\d+),(\d+)万円', race_data_list[10])
+        race_info.first_prize = prize.groups()[0]
+        race_info.second_prize = prize.groups()[1]
+        race_info.third_prize = prize.groups()[2]
+        race_info.fourth_prize = prize.groups()[3]
+        race_info.fifth_prize = prize.groups()[4]
 
-def Table(soup):
-    #table[0]...結果テーブル｜[4]...コーナー順位｜[5]...ラップタイム
+        # 各馬の情報(TODO レース結果で取得したものと合体)
+        # horse_info = HorseInfo()
 
-    # read_htmlで抜けなくなる余分なタグを除去
-    HTML = str(soup).replace('<diary_snap_cut>', '').replace('</diary_snap_cut>', '')
-    return pd.read_html(HTML)
+        fc = soup.select('div[class="fc"]')
 
-def rm(str):
-    '''改行・空白を除去'''
-    return str.replace('\n', '').replace(' ', '')
+        for info in fc:
+            horse_info = ''
 
-def half(str):
-    '''全角を半角へ変換'''
-    return str.translate(str.maketrans({chr(0xFF01 + i): chr(0x21 + i) for i in range(94)}))
+            horse_type = info.find('div', class_ = 'Horse02')
+
+            # 馬番(キー)から設定するdictを選択
+            for horse in horse_dict:
+                if horse_dict[horse][0].horse_name == wordchange.rm(horse_type.text):
+                    horse_info = horse_dict[horse][0]
+
+            horse_info.father = info.find('div', class_ = 'Horse01').text
+
+            # TODO マル/カクの違いはレース種別の違いだけなので、種類は地/外だけにするか要検討
+            # TODO パラメータをbelongに統一するかも要検討
+            if 'Icon_MaruChi' in str(horse_type):
+                horse_info.belong = 'マル地'
+            elif 'Icon_kakuChi' in str(horse_type):
+                horse_info.belong = 'カク地'
+            elif 'Icon_MaruGai' in str(horse_type):
+                horse_info.country = 'マル外'
+            elif 'Icon_KakuGai' in str(horse_type):
+                horse_info.country = 'カク外'
+
+            if '<span class="Mark">B</span>' in str(horse_type):
+                horse_info.blinker = '1'
+
+            horse_info.mother = info.find('div', class_ = 'Horse03').text
+            horse_info.grandfather = info.find('div', class_ = 'Horse04').text.replace('(', '').replace(')', '')
+
+            blank = info.find('div', class_ = 'Horse06').text
+            if blank == '連闘':
+                horse_info.blank = '0'
+            else:
+                blank_week = re.search('中(\d+)週', blank)
+                # 初出走判定
+                if blank_week == None:
+                    horse_info.blank = '-1'
+                else:
+                    horse_info.blank = prize.groups()[0]
+
+            running_type = str(info.find('div', class_ = 'Horse06'))
+            if 'horse_race_type00' in running_type:
+                horse_info.running_type = '未'
+            elif 'horse_race_type01' in running_type:
+                horse_info.running_type = '逃'
+            elif 'horse_race_type02' in running_type:
+                horse_info.running_type = '先'
+            elif 'horse_race_type03' in running_type:
+                horse_info.running_type = '差'
+            elif 'horse_race_type04' in running_type:
+                horse_info.running_type = '追'
+            elif 'horse_race_type05' in running_type:
+                horse_info.running_type = '自在'
+
+        hair_colors = soup.find_all('span', class_ = 'Barei')
+        for i, hair_color in enumerate(hair_colors):
+            m = re.search('.\d(.+)', hair_color.text)
+            # 別の箇所でも使われているクラスなので判定が必要
+            if m == None:
+                break
+            else:
+                horse_dict[i + 1][0].hair_color = m.groups()[0]
+
+        # 実運用ではクラス化するため、返り値なしでインスタンス変数へ代入
+        return horse_dict, race_info
+
+    def get_result(self):
+        # レース結果(HTML全体)
+        soup = Soup.get_soup(f'https://race.netkeiba.com/race/result.html?race_id={RACE_ID}')
+
+        # read_htmlで抜けなくなる余分なタグを除去後に結果テーブル抽出
+        tables = pd.read_html(str(soup).replace('<diary_snap_cut>', '').replace('</diary_snap_cut>', ''))
+        table = tables[0]
+
+        # 箱用意{馬番:[HorseInfo, HorseResult]}
+        horse_dict = {i: [HorseInfo(), HorseResult()] for i in table['馬番']}
+
+        # 1着馬の馬番
+        winner_horse_no = 0
+
+        # 行ごとに切り出し
+        # TODO 除外・取消馬の処理
+        for i, index in enumerate(table.index):
+            row = table.loc[index]
+
+            # キーになる馬番を先に取得
+            no = row['馬番']
+
+            # 馬の情報の各項目を設定
+            horse_dict[no][0].frame_no = row['枠番']
+            horse_dict[no][0].horse_no = row['馬番']
+            horse_dict[no][0].horse_name = row['馬名']
+            # 頭1文字が性別、2文字目以降が年齢
+            horse_dict[no][0].gender = row['性齢'][0]
+            horse_dict[no][0].age = row['性齢'][1:]
+            horse_dict[no][0].load = row['斤量']
+            horse_dict[no][0].jockey = row['騎手']
+            horse_dict[no][0].win_odds = row['単勝']
+            horse_dict[no][0].popular = row['人気']
+            # 括弧内が増減、外が馬体重
+            weight = re.search('(\d+)\((.+)\)', row['馬体重'])
+            # 馬体重不明チェック(新馬・前走計不時は増減は0と表記)
+            if weight == None:
+                horse_dict[no][0].weight = -1
+                horse_dict[no][0].weight_change = -999
+            else:
+                horse_dict[no][0].weight = weight.groups()[0]
+                horse_dict[no][0].weight_change = weight.groups()[1].replace('±', '').replace('+', '')
+            # 調教師チェック[東]美浦、[西]栗東
+            trainer = re.search('\[(.+)\] (.+)', row['調教師'])
+            if trainer == None:
+                horse_dict[no][0].trainer_belong = '-'
+                horse_dict[no][0].trainer = '-'
+            else:
+                horse_dict[no][0].trainer_belong = trainer.groups()[0]
+                horse_dict[no][0].trainer = trainer.groups()[1]
+            horse_dict[no][0].horse_no = row['馬番']
+            horse_dict[no][0].owner = row['馬主']
+
+            # レース結果の各項目を設定
+            horse_dict[no][1].horse_no = row['馬番']
+            horse_dict[no][1].rank = row['着順']
+            horse_dict[no][1].goal_time = row['タイム']
+            # 着差、1着馬は2着との差をマイナスに
+            if i == 0:
+                winner_horse_no = no
+            elif i == 1:
+                horse_dict[winner_horse_no][1].diff = '-' + str(row['着差'])
+                horse_dict[no][1].diff = row['着差']
+            else:
+                horse_dict[no][1].diff = row['着差']
+            horse_dict[no][1].pass_rank = row['通過']
+            horse_dict[no][1].agari = row['上り']
+            if not np.isnan(row['賞金(万円)']):
+                horse_dict[no][1].prize = row['賞金(万円)']
+
+        return horse_dict
 
 class CommonInfo():
     '''レースを一意に定めるデータのデータクラス'''
