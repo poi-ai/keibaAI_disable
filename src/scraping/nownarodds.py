@@ -82,13 +82,25 @@ class Nar():
         time.sleep(3)
 
     def get_race_info(self, init_flg = False):
-        '''レース情報を取得'''
+        '''レース情報を取得
+
+        Args:
+            init_flg(bool) : 初期処理(インスタンス作成)か主処理(インスタンス更新)か
+                             T:初期処理,F:主処理
+        '''
         for race_url in self.baba_url:
             # レース情報をDataFrame型で取得
             result = pd_read.html(race_url)
             if result == -1:
-                logger.error(f'レース情報の取得に失敗しました')
-                raise
+                logger.error(f'{babacodechange.keibago(race_url[-2:].replace("=", ""))}競馬場のレース情報取得に失敗しました')
+
+                # 初期処理で失敗した場合のみエラーとして処理
+                if init_flg:
+                    raise
+                else:
+                    logger.info(f'{babacodechange.keibago(race_url[-2:].replace("=", ""))}競馬場の発走時刻更新を行いません')
+                    time.sleep(3)
+                    continue
 
             race_list = result[0]
 
@@ -96,23 +108,39 @@ class Nar():
 
             # 1レースごとの情報取得
             for idx in race_list.index:
-                # 1レース切り出し
-                race = race_list.loc[idx]
-                # 時間をdatetime型に変換
-                race_time = datetime.datetime(int(jst.year()), int(jst.month()), int(jst.day()), int(race[1][:2]), int(race[1][3:]), 0)
 
                 # 最初の処理だけ作成、それ以降は発走時刻のみ更新
                 if init_flg:
-                    # クラス化して保存(競馬場コード,レース番号,発走時刻)
-                    self.race_info.append(RaceInfo(race_url[-2:].replace('=', ''), race[0].replace('R', ''), race_time))
+                    try:
+                        # 1レース切り出し
+                        race = race_list.loc[idx]
+                        # 時間をdatetime型に変換
+                        race_time = datetime.datetime(int(jst.year()), int(jst.month()), int(jst.day()), int(race[1][:2]), int(race[1][3:]), 0)
+
+                        # クラス化して保存(競馬場コード,レース番号,発走時刻)
+                        self.race_info.append(RaceInfo(race_url[-2:].replace('=', ''), race[0].replace('R', ''), race_time))
+                    except Exception as e:
+                        self.error_output(f'{babacodechange.keibago(race_url[-2:].replace("=", ""))}競馬場の発走時刻追加の初期処理に失敗しました', e, traceback.format_exc())
+                        raise
                 else:
-                    # 保存済のレース情報の発走時刻と比較
-                    for save_race in self.race_info:
-                        if save_race.baba_code == race_url[-2:].replace('=', '') and save_race.race_no == race[0].replace('R', ''):
-                            # 発走時刻が変更となっていたら設定し直し
-                            if save_race.race_time != race_time:
-                                logger.info(f'発走時間変更 {babacodechange.keibago(save_race.baba_code)}{save_race.race_no}R {jst.clock(save_race.race_time)}→{jst.clock(race_time)}')
-                                save_race.race_time = race_time
+                    try:
+                        # 1レース切り出し
+                        race = race_list.loc[idx]
+                        # 時間をdatetime型に変換
+                        race_time = datetime.datetime(int(jst.year()), int(jst.month()), int(jst.day()), int(race[1][:2]), int(race[1][3:]), 0)
+
+                        # 保存済のレース情報の発走時刻と比較
+                        for save_race in self.race_info:
+                            if save_race.baba_code == race_url[-2:].replace('=', '') and save_race.race_no == race[0].replace('R', ''):
+                                # 発走時刻が変更となっていたら設定し直し
+                                if save_race.race_time != race_time:
+                                    logger.info(f'発走時間変更 {babacodechange.keibago(save_race.baba_code)}{save_race.race_no}R {jst.clock(save_race.race_time)}→{jst.clock(race_time)}')
+                                    save_race.race_time = race_time
+                    except Exception as e:
+                        self.error_output(f'{babacodechange.keibago(race_url[-2:].replace("=", ""))}競馬場の発走時刻追加処理に失敗しました', e, traceback.format_exc())
+                        logger.info(f'{babacodechange.keibago(race_url[-2:].replace("=", ""))}競馬場のレーステーブルの発走時刻更新を行いません')
+                        time.sleep(3)
+                        continue
             time.sleep(2)
 
     def time_check(self, called = False):
@@ -127,8 +155,8 @@ class Nar():
 
         # 23時～8時に動いていたら異常とみなし強制終了
         if int(jst.hour()) <= 8 or 23 == int(jst.hour()):
-            logger.info('想定時間外に起動しているため強制終了します')
-            line.send('想定時間外に起動しているため強制終了します')
+            logger.info('取得時間外に起動しているため強制終了します')
+            line.send('取得時間外に起動しているため強制終了します')
             exit()
 
         logger.info('オッズ記録時間チェック処理開始')
@@ -276,7 +304,7 @@ class Nar():
                 try:
                     self.get_odds(race)
                 except Exception as e:
-                    self.error_output(f'地方_暫定オッズ取得処理でエラー\n{babacodechange.keibago(race.baba_code)}{race.race_no.zfill(2)}R', e, traceback.format_exc())
+                    self.error_output(f'{babacodechange.keibago(race.baba_code)}{race.race_no.zfill(2)}Rの暫定オッズ取得処理でエラー', e, traceback.format_exc())
                     race.record_flg = '0'
                 race.record_flg = '3'
                 get_count += 1
@@ -293,7 +321,7 @@ class Nar():
                 try:
                     self.get_odds(race)
                 except Exception as e:
-                    self.error_output(f'地方_確定オッズ取得処理でエラー\n{babacodechange.keibago(race.baba_code)}{race.race_no.zfill(2)}R', e, traceback.format_exc())
+                    self.error_output(f'{babacodechange.keibago(race.baba_code)}{race.race_no.zfill(2)}Rの確定オッズ取得処理でエラー', e, traceback.format_exc())
                     race.record_flg = '-1'
                     continue
                 race.record_flg = '4'

@@ -186,29 +186,32 @@ class Jra():
 
         # 発走時刻の切り出し
         for param in self.info_param:
-            # 正常なHTMLが取得できていない場合のリカバリ処理
-            for i in range(5):
-                baba_race_time = []
-                soup = self.do_action(param)
-                if soup == -1:
-                    logger.error(f'{babacodechange.jra(param[9:11])}競馬場のレーステーブルの取得に失敗')
+
+            baba_race_time = []
+            soup = self.do_action(param)
+            if soup == -1:
+                logger.error(f'{babacodechange.jra(param[9:11])}競馬場のレーステーブルの取得に失敗')
+                # 初期処理で失敗した場合のみエラーとして処理
+                if init_flg:
                     raise
+                else:
+                    logger.info(f'{babacodechange.jra(param[9:11])}競馬場の発走時刻更新を行いません')
+                    time.sleep(3)
+                    continue
 
-                # HTMLからレース情報記載のテーブル箇所のみDataFrameに切り出し
-                info_table = pd_read.html(str(soup))[0]
+            # HTMLからレース情報記載のテーブル箇所のみDataFrameに切り出し
+            info_table = pd_read.html(str(soup))[0]
 
-                # カラムが正常に取れているかのチェック
-                if '発走時刻' in info_table.columns:
-                    break
-
+            # カラムが正常に取れているかのチェック
+            if not '発走時刻' in info_table.columns:
                 logger.warning(f'{babacodechange.jra(param[9:11])}競馬場のレーステーブルの正常データ取得に失敗')
-                time.sleep(3)
 
-                if i == 4:
-                    logger.error('5度リトライしましたが正常なデータが取れませんでした。処理を終了します')
+                if init_flg:
                     raise
-
-            logger.info(f'{babacodechange.jra(param[9:11])}競馬場のレーステーブル取得')
+                else:
+                    logger.info(f'{babacodechange.jra(param[9:11])}競馬場の発走時刻更新を行いません')
+                    time.sleep(3)
+                    continue
 
             for i in info_table['発走時刻']:
                 m = re.search(r'(\d+)時(\d+)分', i)
@@ -236,14 +239,24 @@ class Jra():
             for race_num, param in enumerate(tanpuku):
                 if init_flg:
                     # 初期処理の場合はレース情報をRaceInfo型で保存する
-                    self.race_info.append(RaceInfo(param, param[9:11], param[19:21], today_race_time[kaisai_num][race_num]))
+                    try:
+                        self.race_info.append(RaceInfo(param, param[9:11], param[19:21], today_race_time[kaisai_num][race_num]))
+                    except Exception as e:
+                        self.error_output(f'{babacodechange.jra(param[9:11])}競馬場の発走時刻追加の初期処理に失敗しました', e, traceback.format_exc())
+                        raise
                 else:
                     # 主処理の場合は発走時間が更新されているかのチェック
-                    for race in self.race_info:
-                        if race.baba_code == param[9:11] and race.race_no == param[19:21]:
-                            if race.race_time != today_race_time[kaisai_num][race_num]:
-                                logger.info(f'発走時間変更 {babacodechange.jra(race.baba_code)}{race.race_no}R {jst.clock(race.race_time)}→{jst.clock(today_race_time[kaisai_num][race_num])}')
-                                race.race_time = today_race_time[kaisai_num][race_num]
+                    try:
+                        for race in self.race_info:
+                            if race.baba_code == param[9:11] and race.race_no == param[19:21]:
+                                if race.race_time != today_race_time[kaisai_num][race_num]:
+                                    logger.info(f'発走時間変更 {babacodechange.jra(race.baba_code)}{race.race_no}R {jst.clock(race.race_time)}→{jst.clock(today_race_time[kaisai_num][race_num])}')
+                                    race.race_time = today_race_time[kaisai_num][race_num]
+                    except Exception as e:
+                        self.error_output(f'{babacodechange.jra(param[9:11])}競馬場の発走時刻追加処理に失敗しました', e, traceback.format_exc())
+                        logger.info(f'{babacodechange.jra(param[9:11])}競馬場のレーステーブルの発走時刻更新を行いません')
+                        time.sleep(3)
+                        continue
 
     def time_check(self, called = False):
         '''次のオッズ記録時間までの秒数を計算する
@@ -257,8 +270,8 @@ class Jra():
 
         # 23時～8時に動いていたら異常とみなし強制終了
         if int(jst.hour()) <= 8 or 23 == int(jst.hour()):
-            logger.info('想定時間外に起動しているため強制終了します')
-            line.send('想定時間外に起動しているため強制終了します')
+            logger.info('取得時間外に起動しているため強制終了します')
+            line.send('取得時間外に起動しているため強制終了します')
             exit()
 
         logger.info('オッズ記録時間チェック処理開始')
@@ -359,7 +372,7 @@ class Jra():
                 try:
                     self.get_odds(race)
                 except Exception as e:
-                    self.error_output(f'中央_暫定オッズ取得処理でエラー\n{babacodechange.jra(race.baba_code)}{race.race_no}R', e, traceback.format_exc())
+                    self.error_output(f'{babacodechange.jra(race.baba_code)}{race.race_no}Rの暫定オッズ取得処理でエラー', e, traceback.format_exc())
                     race.record_flg = '0'
                     continue
                 race.record_flg = '3'
@@ -377,7 +390,7 @@ class Jra():
                 try:
                     self.get_odds(race)
                 except Exception as e:
-                    self.error_output(f'中央_確定オッズ取得処理でエラー\n{babacodechange.jra(race.baba_code)}{race.race_no}R', e, traceback.format_exc())
+                    self.error_output(f'{babacodechange.jra(race.baba_code)}{race.race_no}Rの確定オッズ取得処理でエラー', e, traceback.format_exc())
                     race.record_flg = '-1'
                     continue
                 race.record_flg = '4'
