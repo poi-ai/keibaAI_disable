@@ -133,13 +133,13 @@ class RaceData():
             hold_list(list):対象年月の開催日。要素はyyyyMMdd形式のstr型。
 
         '''
-        # 開催カレンダーページからカレンダー内のリンク(=レースがある日URL)を取得
+        # 開催カレンダーページからリンクを取得
         soup = Soup.get_soup(f'https://race.netkeiba.com/top/calendar.html?year={years}&month={month}')
         links = soup.find_all('a')
         hold_list = []
         for link in links:
             date_url = link.get('href')
-            # カレンダー内にあるリンクだけ取得
+            # カレンダー内にあるリンク(=レースがある日)だけ取得
             if 'kaisai_date' in date_url:
                 hold_list.append(date_url[len(date_url) - 8:])
         return hold_list

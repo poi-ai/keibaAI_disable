@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
 import re
-from common import output, soup as Soup, wordchange
+from common import output, soup as Soup, wordchange, logger as lg
 
 class GetRaceData():
     '''netkeibaのサイトから中央競馬の過去レースデータを取得する
@@ -21,6 +21,12 @@ class GetRaceData():
     '''
 
     def __init__(self, race_id, output_type = 'm'):
+        self.logger = lg.Logger(0)
+        self.race_info = RaceInfo()
+        self.horse_race_info_dict = {}
+        self.horse_char_info_dict = {}
+        #self.race_progress_info = RaceProgressInfo()
+        self.horse_result_dict = {}
         self.race_id = race_id
         self.output_type = output_type
 
@@ -28,23 +34,55 @@ class GetRaceData():
     @property
     def race_id(self): return self.__race_id
     @property
+    def baba_id(self): return self.__baba_id
+    @property
+    def race_date(self): return self.__race_date
+    @property
+    def race_no(self): return self.__race_no
+    @property
+    def race_info(self): return self.__race_info
+    @property
+    def horse_race_info_dict(self): return self.__horse_race_info_dict
+    @property
+    def horse_char_info_dict(self): return self.__horse_char_info_dict
+    @property
+    def race_progress_info(self): return self.__race_progress_info
+    @property
+    def horse_result_dict(self): return self.__horse_result_dict
+    @property
     def output_type(self): return self.__output_type
 
     # setter
     @race_id.setter
     def race_id(self, race_id): self.__race_id = race_id
+    @baba_id.setter
+    def baba_id(self, baba_id): self.__baba_id = baba_id
+    @race_date.setter
+    def race_date(self, race_date): self.__race_date = race_date
+    @race_no.setter
+    def race_no(self, race_no): self.__race_no = race_no
+    @race_info.setter
+    def race_info(self, race_info): self.__race_info = race_info
+    @horse_race_info_dict.setter
+    def horse_race_info_dict(self, horse_race_info_dict): self.__horse_race_info_dict = horse_race_info_dict
+    @horse_char_info_dict.setter
+    def horse_char_info_dict(self, horse_char_info_dict): self.__horse_char_info_dict = horse_char_info_dict
+    @race_progress_info.setter
+    def race_progress_info(self, race_progress_info): self.__race_progress_info = race_progress_info
+    @horse_result_dict.setter
+    def horse_result_dict(self, horse_result_dict): self.__horse_result_dict = horse_result_dict
     @output_type.setter
     def output_type(self, output_type): self.__output_type = output_type
 
     '''
-    MEMO
+    TODO
     * レース前に実際に取れるのは馬柱のみなので、レース情報などは馬柱から取得する
     * 騎手減量がリアルタイム レース結果からしか取得できないので要検討
     '''
     def main(self):
         global RACE_ID
         # 共通(PKになる)レースデータ
-        common_info = CommonInfo()
+        #common_info = CommonInfo()
 
         # TODO 開催日、実装時はインスタンス変数
         #common_info.race_date = KAISAI_DATE
@@ -55,9 +93,10 @@ class GetRaceData():
         horse_dict = self.get_result()
 
         # 馬柱からデータ取得
-        horse_dict, race_info = self.get_umabashira(horse_dict)
+        horse_dict = self.get_umabashira(horse_dict)
 
         # インスタンス変数確認用
+        '''
         for dict in horse_dict:
             horse_info = vars(horse_dict[dict][0])
             df = pd.DataFrame.from_dict(horse_info, orient='index').T
@@ -69,6 +108,7 @@ class GetRaceData():
 
         df = pd.DataFrame.from_dict(vars(race_info), orient='index').T
         output.csv(df, 'race_info')
+        '''
 
     def get_umabashira(self, horse_dict):
         # TODO 実運用のhorse_dictはインスタンス変数(self)から引っ張る
@@ -76,143 +116,140 @@ class GetRaceData():
         # 馬柱からデータを取得
         soup = Soup.get_soup(f'https://race.netkeiba.com/race/shutuba_past.html?race_id={RACE_ID}')
 
-        # レース情報格納用データクラス
-        race_info = RaceInfo()
-
         # コース情報や状態を抽出
         race_data_01 = soup.find('div', class_ = 'RaceData01')
         race_data_list = wordchange.rm(race_data_01.text).split('/')
 
-        race_info.race_time = race_data_list[0].replace('発走', '')
+        self.race_info.race_time = race_data_list[0].replace('発走', '')
 
         course = re.search('([芝|ダ|障])(\d+)m\((.*)\)', race_data_list[1])
-        race_info.distance = course.groups()[1]
+        self.race_info.distance = course.groups()[1]
 
         if course.groups()[0] == '障':
-            race_info.race_type = '障'
+            self.race_info.race_type = '障'
 
             baba = course.groups()[2]
             if '芝' in baba:
                 if 'ダート' in baba:
-                    race_info.baba = '芝ダ'
-                    race_info.glass_condition = race_data_list[3].replace('馬場:', '')
+                    self.race_info.baba = '芝ダ'
+                    self.race_info.glass_condition = race_data_list[3].replace('馬場:', '')
                     if len(race_data_list) == 5:
-                        race_info.dirt_condition = race_data_list[4].replace('馬場:', '')
+                        self.race_info.dirt_condition = race_data_list[4].replace('馬場:', '')
                 else:
-                    race_info.baba = '芝'
-                    race_info.glass_condition = race_data_list[3].replace('馬場:', '')
+                    self.race_info.baba = '芝'
+                    self.race_info.glass_condition = race_data_list[3].replace('馬場:', '')
             else:
-                race_info.baba = 'ダ'
-                race_info.dirt_condition = race_data_list[3].replace('馬場:', '')
+                self.race_info.baba = 'ダ'
+                self.race_info.dirt_condition = race_data_list[3].replace('馬場:', '')
 
             around = re.sub(r'[芝ダート]', '', baba)
             if len(around) != 0:
-                race_info.in_out = around
+                self.race_info.in_out = around
 
         else:
-            race_info.race_type = '平'
+            self.race_info.race_type = '平'
 
             baba = course.groups()[0]
-            race_info.baba = baba
+            self.race_info.baba = baba
             if baba == '芝':
-                race_info.glass_condition = race_data_list[3].replace('馬場:', '')
+                self.race_info.glass_condition = race_data_list[3].replace('馬場:', '')
             elif baba == 'ダ':
-                race_info.dirt_condition = race_data_list[3].replace('馬場:', '')
+                self.race_info.dirt_condition = race_data_list[3].replace('馬場:', '')
 
             around = course.groups()[2]
             if around == '直線':
-                race_info.around = '直'
+                self.race_info.around = '直'
             else:
-                race_info.around = around[0]
+                self.race_info.around = around[0]
                 if len(around) != 1:
-                    race_info.in_out = around[1:]
+                    self.race_info.in_out = around[1:]
 
-        race_info.weather = race_data_list[2].replace('天候:', '')
+        self.race_info.weather = race_data_list[2].replace('天候:', '')
 
         # 出走条件等の抽出
         race_data_02 = soup.find('div', class_ = 'RaceData02')
         race_data_list = race_data_02.text.split('\n')
 
-        race_info.hold_no = race_data_list[1].replace('回', '')
-        race_info.hold_date = race_data_list[3].replace('日目', '')
-        race_info.require_age = wordchange.full_to_half(race_data_list[4]).replace('サラ系', '').replace('障害', '')
-        race_info.race_class = wordchange.full_to_half(race_data_list[5])
+        self.race_info.hold_no = race_data_list[1].replace('回', '')
+        self.race_info.hold_date = race_data_list[3].replace('日目', '')
+        self.race_info.require_age = wordchange.full_to_half(race_data_list[4]).replace('サラ系', '').replace('障害', '')
+        self.race_info.race_class = wordchange.full_to_half(race_data_list[5])
 
         race_name = soup.find('div', class_ = 'RaceName')
-        race_info.race_name = race_name.text.replace('\n', '')
+        self.race_info.race_name = race_name.text.replace('\n', '')
 
         # CSSからクラスチェック、13はWIN5
         if 'Icon_GradeType1"' in str(race_name):
-            race_info.grade = 'GI'
+            self.race_info.grade = 'GI'
         elif 'Icon_GradeType2' in str(race_name):
-            race_info.grade = 'GII'
+            self.race_info.grade = 'GII'
         elif 'Icon_GradeType3' in str(race_name):
-            race_info.grade = 'GIII'
+            self.race_info.grade = 'GIII'
         elif 'Icon_GradeType4' in str(race_name):
-            race_info.grade = '重賞'
+            self.race_info.grade = '重賞'
         elif 'Icon_GradeType5' in str(race_name):
-            race_info.grade = 'OP'
+            self.race_info.grade = 'OP'
         elif 'Icon_GradeType6' in str(race_name):
-            race_info.grade = '1600万下'
+            self.race_info.grade = '1600万下'
         elif 'Icon_GradeType7' in str(race_name):
-            race_info.grade = '1000万下'
+            self.race_info.grade = '1000万下'
         elif 'Icon_GradeType8' in str(race_name):
-            race_info.grade = '900万下'
+            self.race_info.grade = '900万下'
         elif 'Icon_GradeType9' in str(race_name):
-            race_info.grade = '500万下'
+            self.race_info.grade = '500万下'
         elif 'Icon_GradeType10' in str(race_name):
-            race_info.grade = 'JGI'
+            self.race_info.grade = 'JGI'
         elif 'Icon_GradeType11' in str(race_name):
-            race_info.grade = 'JGII'
+            self.race_info.grade = 'JGII'
         elif 'Icon_GradeType12' in str(race_name):
-            race_info.grade = 'JGIII'
+            self.race_info.grade = 'JGIII'
         elif 'Icon_GradeType15' in str(race_name):
-            race_info.grade = 'L'
+            self.race_info.grade = 'L'
         elif 'Icon_GradeType16' in str(race_name):
-            race_info.grade = '3勝'
+            self.race_info.grade = '3勝'
         elif 'Icon_GradeType17' in str(race_name):
-            race_info.grade = '2勝'
+            self.race_info.grade = '2勝'
         elif 'Icon_GradeType18' in str(race_name):
-            race_info.grade = '1勝'
+            self.race_info.grade = '1勝'
 
         # TODO 待選とは何か確認
         if 'Icon_GradeType14' in str(race_name):
-            race_info.grade += '待選'
+            self.race_info.grade += '待選'
 
         require = race_data_list[6]
         if '(国際)' in require:
-            race_info.require_country = '国'
+            self.race_info.require_country = '国'
         elif '(混)' in require:
-            race_info.require_country = '混'
+            self.race_info.require_country = '混'
 
         if '牡・牝' in require:
-            race_info.require_gender = '牡牝'
+            self.race_info.require_gender = '牡牝'
         elif '牝' in require:
-            race_info.require_gender = '牝'
+            self.race_info.require_gender = '牝'
 
         if '九州産馬' in require:
-            race_info.require_local = '1'
+            self.race_info.require_local = '1'
 
         if '見習騎手' in require:
-            race_info.require_beginner_jockey = '1'
+            self.race_info.require_beginner_jockey = '1'
 
         if '(指)' in require:
-            race_info.require_local = 'マル指'
+            self.race_info.require_local = 'マル指'
         elif '(特指)' in require:
-            race_info.require_local = '特指'
+            self.race_info.require_local = '特指'
         elif '指' in require:
-            race_info.require_local = 'カク指'
+            self.race_info.require_local = 'カク指'
 
         # TODO 別定/ハンデ戦はより詳細に分類できるかチェック
-        race_info.load_kind = race_data_list[7]
-        race_info.horse_num = race_data_list[8].replace('頭', '')
+        self.race_info.load_kind = race_data_list[7]
+        self.race_info.horse_num = race_data_list[8].replace('頭', '')
 
         prize = re.search('本賞金:(\d+),(\d+),(\d+),(\d+),(\d+)万円', race_data_list[10])
-        race_info.first_prize = prize.groups()[0]
-        race_info.second_prize = prize.groups()[1]
-        race_info.third_prize = prize.groups()[2]
-        race_info.fourth_prize = prize.groups()[3]
-        race_info.fifth_prize = prize.groups()[4]
+        self.race_info.first_prize = prize.groups()[0]
+        self.race_info.second_prize = prize.groups()[1]
+        self.race_info.third_prize = prize.groups()[2]
+        self.race_info.fourth_prize = prize.groups()[3]
+        self.race_info.fifth_prize = prize.groups()[4]
 
         # 各馬の情報(TODO レース結果で取得したものと合体)
         # horse_info = HorseInfo()
@@ -282,8 +319,8 @@ class GetRaceData():
             else:
                 horse_dict[i + 1][0].hair_color = m.groups()[0]
 
-        # 実運用ではクラス化するため、返り値なしでインスタンス変数へ代入
-        return horse_dict, race_info
+        # TODO 実運用ではクラス化するため、返り値なしでインスタンス変数へ代入
+        return horse_dict
 
     def get_result(self):
         # レース結果(HTML全体)
@@ -675,6 +712,7 @@ class HorseInfo():
 class HorseResult():
     '''各馬のレース結果のデータクラス'''
     def __init__(self):
+        self.__horse_id = '' # 競走馬ID(netkeiba準拠、複合PK) TODO
         self.__horse_no = '' # 馬番(複合PK)o
         self.__rank = '' # 着順o
         self.__goal_time = '' # タイムo
@@ -684,6 +722,8 @@ class HorseResult():
         self.__prize = '0' # 賞金o
 
     # getter
+    @property
+    def horse_id(self): return self.__horse_id
     @property
     def horse_no(self): return self.__horse_no
     @property
@@ -700,6 +740,8 @@ class HorseResult():
     def prize(self): return self.__prize
 
     # setter
+    @horse_id.setter
+    def horse_id(self, horse_id): self.__horse_id = horse_id
     @horse_no.setter
     def horse_no(self, horse_no): self.__horse_no = horse_no
     @rank.setter
@@ -714,3 +756,8 @@ class HorseResult():
     def agari(self, agari): self.__agari = agari
     @prize.setter
     def prize(self, prize): self.__prize = prize
+
+# TODO 単一メソッド動作確認用、後で消す
+if __name__ == '__main__':
+    rg = GetRaceData('202212345601')
+    rg.main()
