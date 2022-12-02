@@ -25,9 +25,11 @@ class GetRaceData():
         self.race_info = RaceInfo()
         self.horse_race_info_dict = {}
         self.horse_char_info_dict = {}
-        #self.race_progress_info = RaceProgressInfo()
+        self.race_progress_info = RaceProgressInfo()
         self.horse_result_dict = {}
-        self.race_id = race_id
+        self.race_id = self.race_info.race_id = self.race_progress_info.race_id = race_id
+        self.baba_id = self.race_info.baba_id = race_id[4:6]
+        self.race_no = self.race_info.race_no = race_id[10:]
         self.output_type = output_type
 
     # getter
@@ -80,15 +82,6 @@ class GetRaceData():
     * 騎手減量がリアルタイム レース結果からしか取得できないので要検討
     '''
     def main(self):
-        global RACE_ID
-        # 共通(PKになる)レースデータ
-        #common_info = CommonInfo()
-
-        # TODO 開催日、実装時はインスタンス変数
-        #common_info.race_date = KAISAI_DATE
-        #common_info.race_no = RACE_ID[-2:]
-        #common_info.baba_code = RACE_ID[4:6]
-
         # レース結果(DB)からデータ取得
         horse_dict = self.get_result()
 
@@ -114,7 +107,7 @@ class GetRaceData():
         # TODO 実運用のhorse_dictはインスタンス変数(self)から引っ張る
 
         # 馬柱からデータを取得
-        soup = Soup.get_soup(f'https://race.netkeiba.com/race/shutuba_past.html?race_id={RACE_ID}')
+        soup = Soup.get_soup(f'https://race.netkeiba.com/race/shutuba_past.html?race_id={self.race_id}')
 
         # コース情報や状態を抽出
         race_data_01 = soup.find('div', class_ = 'RaceData01')
@@ -324,7 +317,7 @@ class GetRaceData():
 
     def get_result(self):
         # レース結果(HTML全体)
-        soup = Soup.get_soup(f'https://race.netkeiba.com/race/result.html?race_id={RACE_ID}')
+        soup = Soup.get_soup(f'https://race.netkeiba.com/race/result.html?race_id={self.race_id}')
 
         # read_htmlで抜けなくなる余分なタグを除去後に結果テーブル抽出
         tables = pd.read_html(str(soup).replace('<diary_snap_cut>', '').replace('</diary_snap_cut>', ''))
@@ -394,32 +387,13 @@ class GetRaceData():
 
         return horse_dict
 
-class CommonInfo():
-    '''レースを一意に定めるデータのデータクラス'''
-    def __init__(self):
-        self.__race_date = '' # レース開催日
-        self.__race_no = '' # レース番号
-        self.__baba_code = '' # 競馬場コード
-
-    # getter
-    @property
-    def race_date(self): return self.__race_date
-    @property
-    def race_no(self): return self.__race_no
-    @property
-    def baba_code(self): return self.__baba_code
-
-    # setter
-    @race_date.setter
-    def race_date(self, race_date): self.__race_date = race_date
-    @race_no.setter
-    def race_no(self, race_no): self.__race_no = race_no
-    @baba_code.setter
-    def baba_code(self, baba_code): self.__baba_code = baba_code
-
 class RaceInfo():
     '''発走前のレースに関するデータのデータクラス'''
     def __init__(self):
+        self.__race_id = '' # レースID(netkeiba準拠、PK)o
+        self.__race_date = '' # レース開催日 TODO
+        self.__race_no = '' # レース番号o
+        self.__baba_id = '' # 競馬場コードo
         self.__race_name = '' # レース名o
         self.__race_type = '' # レース形態(平地/障害)o
         self.__baba = '' # 馬場(芝/ダート)o
@@ -449,6 +423,14 @@ class RaceInfo():
         self.__horse_num = '' # 出走頭数o
 
     # getter
+    @property
+    def race_id(self): return self.__race_id
+    @property
+    def race_date(self): return self.__race_date
+    @property
+    def race_no(self): return self.__race_no
+    @property
+    def baba_id(self): return self.__baba_id
     @property
     def race_name(self): return self.__race_name
     @property
@@ -505,6 +487,14 @@ class RaceInfo():
     def horse_num(self): return self.__horse_num
 
     # setter
+    @race_id.setter
+    def race_id(self, race_id): self.__race_id = race_id
+    @race_date.setter
+    def race_date(self, race_date): self.__race_date = race_date
+    @race_no.setter
+    def race_no(self, race_no): self.__race_no = race_no
+    @baba_id.setter
+    def baba_id(self, baba_id): self.__baba_id = baba_id
     @race_name.setter
     def race_name(self, race_name): self.__race_name = race_name
     @race_type.setter
@@ -560,23 +550,48 @@ class RaceInfo():
     @horse_num.setter
     def horse_num(self, horse_num): self.__horse_num = horse_num
 
-class RaceResult():
+class RaceProgressInfo():
     '''レース全体のレース結果を保持するデータクラス'''
     def __init__(self):
-        self.__corner_rank = [] # コーナー通過順(馬番) TODO
-        self.__pace = [] # 先頭馬のペース(秒) TODO
+        self.__race_id = '' # レースID(netkeiba準拠、PK) TODO
+        self.__corner1_rank = '' # 第1コーナー通過順(馬番) TODO
+        self.__corner2_rank = '' # 第2コーナー通過順(馬番) TODO
+        self.__corner3_rank = '' # 第3コーナー通過順(馬番) TODO
+        self.__corner4_rank = '' # 第4コーナー通過順(馬番) TODO
+        self.__lap_distance = '' # 先頭馬のラップ測定距離(m) TODO
+        self.__lap_time = '' # 先頭馬のラップタイム(秒) TODO
 
     # getter
     @property
-    def corner_rank(self): return self.__corner_rank
+    def race_id(self): return self.__race_id
     @property
-    def pace(self): return self.__pace
+    def corner1_rank(self): return self.__corner1_rank
+    @property
+    def corner2_rank(self): return self.__corner2_rank
+    @property
+    def corner3_rank(self): return self.__corner3_rank
+    @property
+    def corner4_rank(self): return self.__corner4_rank
+    @property
+    def lap_distance(self): return self.__lap_distance
+    @property
+    def lap_time(self): return self.__lap_time
 
     # setter
-    @corner_rank.setter
-    def corner_rank(self, corner_rank): self.__corner_rank = corner_rank
-    @pace.setter
-    def pace(self, pace): self.__pace = pace
+    @race_id.setter
+    def race_id(self, race_id): self.__race_id = race_id
+    @corner1_rank.setter
+    def corner1_rank(self, corner1_rank): self.__corner1_rank = corner1_rank
+    @corner2_rank.setter
+    def corner2_rank(self, corner2_rank): self.__corner2_rank = corner2_rank
+    @corner3_rank.setter
+    def corner3_rank(self, corner3_rank): self.__corner3_rank = corner3_rank
+    @corner4_rank.setter
+    def corner4_rank(self, corner4_rank): self.__corner4_rank = corner4_rank
+    @lap_distance.setter
+    def lap_distance(self, lap_distance): self.__lap_distance = lap_distance
+    @lap_time.setter
+    def lap_time(self, lap_time): self.__lap_time = lap_time
 
 class HorseInfo():
     '''各馬の発走前のデータを保持するデータクラス'''
@@ -606,9 +621,10 @@ class HorseInfo():
         self.__grandfather = '' # 母父名o
         self.__running_type = '' # 脚質(←netkeibaの主観データ？)o
         self.__country = '日' # 所属(外国馬か)o
-        self.__belong = '非地' # 所属(地方馬か)o
+        self.__belong = '非' # 所属(地方馬か)o
         self.__blinker = '0' # ブリンカー(有/無)o
         self.__hair_color = '' # 毛色
+
     # getter
     @property
     def frame_no(self): return self.__frame_no

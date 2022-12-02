@@ -29,11 +29,10 @@ class GetRaceData():
         self.horse_char_info_dict = {}
         self.race_progress_info = RaceProgressInfo()
         self.horse_result_dict = {}
-        self.race_id = race_id
+        self.race_id = self.race_info.race_id = self.race_progress_info.race_id = race_id
         self.baba_id = self.race_info.baba_id = race_id[4:6]
         self.race_date = self.race_info.race_date = race_id[:4] + race_id[6:10]
         self.race_no = self.race_info.race_no = race_id[10:]
-        self.race_progress_info.race_id = race_id
         self.output_type = output_type
 
     # getter
@@ -845,6 +844,7 @@ class HorseResult():
         self.__rank = '' # 着順
         self.__goal_time = '' # タイム
         self.__diff = '' # 着差
+        self.__pass_rank = '' # 通過順 TODO
         self.__agari = '' # 上り3F
         self.__prize = '0' # 賞金
 
@@ -859,6 +859,8 @@ class HorseResult():
     def goal_time(self): return self.__goal_time
     @property
     def diff(self): return self.__diff
+    @property
+    def pass_rank(self): return self.__pass_rank
     @property
     def agari(self): return self.__agari
     @property
@@ -875,6 +877,8 @@ class HorseResult():
     def goal_time(self, goal_time): self.__goal_time = goal_time
     @diff.setter
     def diff(self, diff): self.__diff = diff
+    @pass_rank.setter
+    def pass_rank(self, pass_rank): self.__pass_rank = pass_rank
     @agari.setter
     def agari(self, agari): self.__agari = agari
     @prize.setter
