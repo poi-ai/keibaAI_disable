@@ -1,3 +1,4 @@
+import package
 import pandas as pd
 import re
 import traceback
@@ -34,6 +35,7 @@ class GetRaceData():
         self.race_date = self.race_info.race_date = race_id[:4] + race_id[6:10]
         self.race_no = self.race_info.race_no = race_id[10:]
         self.output_type = output_type
+        self.race_flg = True
 
     # getter
     @property
@@ -86,19 +88,42 @@ class GetRaceData():
     '''
     def main(self):
 
-        # 馬柱からデータ取得
-        try:
-            self.get_umabashira()
-        except Exception as e:
-            self.error_output(f'{babacodechange.netkeiba(self.baba_id)}{self.race_no}R(race_id:{self.race_id})の馬柱取得処理でエラー', e, traceback.format_exc())
+        # ばんえいとそれ以外で取得ロジックを変える
+        if self.baba_id == '65':
+            # TODO 後で消す
             return
 
-        # レース結果からデータ取得
-        try:
-            self.get_result()
-        except Exception as e:
-            self.error_output(f'{babacodechange.netkeiba(self.baba_id)}{self.race_no}R(race_id:{self.race_id})のレース結果取得処理でエラー', e, traceback.format_exc())
-            return
+            # 馬柱からデータ取得
+            try:
+                self.get_bannei_umabashira()
+            except Exception as e:
+                self.error_output(f'ばんえい{self.race_no}R(race_id:{self.race_id})の馬柱取得処理でエラー', e, traceback.format_exc())
+                return
+
+            # レース結果からデータ取得
+            try:
+                self.get_bannei_result()
+            except Exception as e:
+                self.error_output(f'ばんえい{self.race_no}R(race_id:{self.race_id})のレース結果取得処理でエラー', e, traceback.format_exc())
+                return
+        else:
+            # 馬柱からデータ取得
+            try:
+                self.get_umabashira()
+            except Exception as e:
+                self.error_output(f'{babacodechange.netkeiba(self.baba_id)}{self.race_no}R(race_id:{self.race_id})の馬柱取得処理でエラー', e, traceback.format_exc())
+                return
+
+            # レース中止フラグチェック
+            if not self.race_flg:
+                return
+
+            # レース結果からデータ取得
+            try:
+                self.get_result()
+            except Exception as e:
+                self.error_output(f'{babacodechange.netkeiba(self.baba_id)}{self.race_no}R(race_id:{self.race_id})のレース結果取得処理でエラー', e, traceback.format_exc())
+                return
 
         # TODO 楽天から残りの要素取得
 
@@ -133,6 +158,13 @@ class GetRaceData():
         # 馬場(芝/ダ)、馬場状態
         course = re.search('([芝|ダ])(\d+)m\((.*)\)', race_data_list[1])
         baba = course.groups()[0]
+
+        # 当日公表データが少ない(=レース中止)の場合弾く
+        if len(race_data_list) < 4:
+            self.logger.info(f'{babacodechange.netkeiba(self.baba_id)}{self.race_no}R(race_id:{self.race_id})のレースデータが不足しているため記録を行いません')
+            self.race_flg = False
+            return
+
         self.race_info.baba = baba
         if baba == '芝':
             self.race_info.glass_condition = race_data_list[3].replace('馬場:', '')
@@ -220,7 +252,7 @@ class GetRaceData():
             # 不変の馬情報格納用(馬名、父・母名...)
             horse_char_info = HorseCharInfo()
 
-            # 所属や馬名の書いてある枠
+            # 所属や馬名の書いてる枠
             horse_type = info.find('dt', class_ = 'Horse02')
 
             # 外国産(所属)馬/地方所属馬判定
@@ -253,8 +285,8 @@ class GetRaceData():
 
             # 調教師・調教師所属
             trainer = info.find('dt', class_ = 'Horse05').text.split('・')
-            horse_race_info.trainer_belong = wordchange.rm(trainer[0])
-            horse_race_info.trainer = trainer[1]
+            horse_race_info.trainer_belong = trainer[0]
+            horse_race_info.trainer = wordchange.rm(trainer[1])
 
             # netkeiba独自の調教師ID
             trainer_id = re.search('db.netkeiba.com/trainer/(\d+)/', str(info))
@@ -307,6 +339,7 @@ class GetRaceData():
             horse_race_info.frame_no = self.frame_no_culc(self.race_info.horse_num, int(i + 1))
 
             self.horse_race_info_dict[str(i + 1)] = horse_race_info
+            self.horse_char_info_dict[str(i + 1)] = horse_char_info
 
         # 騎手等記載の隣の枠から情報取得
         jockeys = soup.find_all('td', class_ = 'Jockey')
@@ -336,6 +369,9 @@ class GetRaceData():
             self.horse_race_info_dict[str(i + 1)] = horse_race_info
             self.horse_char_info_dict[str(i + 1)] = horse_char_info
 
+    def get_bannei_umabashira(self):
+        pass
+
     def get_result(self):
         '''レース結果ページからレース結果を抽出する'''
 
@@ -345,6 +381,14 @@ class GetRaceData():
 
         # read_htmlで抜けなくなる余分なタグを除去後に結果テーブル抽出
         tables = pd.read_html(str(soup).replace('<diary_snap_cut>', '').replace('</diary_snap_cut>', ''))
+
+        # 結果ページのテーブル数が少ない場合はレースが行われていないとみなし、出力を行わない
+        if len(table) <= 2:
+            self.logger.info(f'{babacodechange.netkeiba(self.baba_id)}{self.race_no}R(race_id:{self.race_id})のレース結果ページのデータが不足しているため記録を行いません')
+            self.race_flg = False
+            return
+
+        # レース結果のテーブル
         table = tables[0]
 
         # 1着馬の馬番
@@ -411,6 +455,9 @@ class GetRaceData():
             self.race_progress_info.lap_distance = '|'.join([distance.text.replace('m', '') for distance in lap_table.find_all('th')])
             self.race_progress_info.lap_time = '|'.join([wordchange.change_seconds(lap.text) for lap in lap_table.find('tr', class_ = 'HaronTime').find_all('td')])
 
+    def get_bannei_result(self):
+        pass
+
     def output_csv(self):
         '''取得したデータをCSV出力する'''
 
@@ -423,12 +470,9 @@ class GetRaceData():
             filename_tail = f'_{self.race_date[:6]}'
 
         # 発走前レースデータを出力
-        if len(self.race_info) != 0:
-            race_info_df = pd.DataFrame.from_dict(vars(self.race_info), orient='index').T
-            race_info_df.columns = [column.replace('_RaceInfo__', '') for column in race_info_df.columns]
-            output.csv(race_info_df, f'race_info{filename_tail}')
-        else:
-            self.logger.info(f'race_id:{self.race_id}\nが取得できなかったため出力を行いません')
+        race_info_df = pd.DataFrame.from_dict(vars(self.race_info), orient='index').T
+        race_info_df.columns = [column.replace('_RaceInfo__', '') for column in race_info_df.columns]
+        output.csv(race_info_df, f'race_info{filename_tail}')
 
         # 発走前馬データを出力
         if len(self.horse_race_info_dict) != 0:
@@ -447,12 +491,9 @@ class GetRaceData():
             self.logger.info(f'race_id:{self.race_id}\nが取得できなかったため出力を行いません')
 
         # レース進行データを出力
-        if len(self.race_progress_info) != 0:
-            race_progress_info_df = pd.DataFrame.from_dict(vars(self.race_progress_info), orient='index').T
-            race_progress_info_df.columns = [column.replace('_RaceProgressInfo__', '') for column in race_progress_info_df.columns]
-            output.csv(race_progress_info_df, f'race_progress_info{filename_tail}')
-        else:
-            self.logger.info(f'race_id:{self.race_id}\nが取得できなかったため出力を行いません')
+        race_progress_info_df = pd.DataFrame.from_dict(vars(self.race_progress_info), orient='index').T
+        race_progress_info_df.columns = [column.replace('_RaceProgressInfo__', '') for column in race_progress_info_df.columns]
+        output.csv(race_progress_info_df, f'race_progress_info{filename_tail}')
 
         # レース結果データを出力
         if len(self.horse_result_dict) != 0:
@@ -844,7 +885,6 @@ class HorseResult():
         self.__rank = '' # 着順
         self.__goal_time = '' # タイム
         self.__diff = '' # 着差
-        self.__pass_rank = '' # 通過順 TODO
         self.__agari = '' # 上り3F
         self.__prize = '0' # 賞金
 
@@ -859,8 +899,6 @@ class HorseResult():
     def goal_time(self): return self.__goal_time
     @property
     def diff(self): return self.__diff
-    @property
-    def pass_rank(self): return self.__pass_rank
     @property
     def agari(self): return self.__agari
     @property
@@ -877,8 +915,6 @@ class HorseResult():
     def goal_time(self, goal_time): self.__goal_time = goal_time
     @diff.setter
     def diff(self, diff): self.__diff = diff
-    @pass_rank.setter
-    def pass_rank(self, pass_rank): self.__pass_rank = pass_rank
     @agari.setter
     def agari(self, agari): self.__agari = agari
     @prize.setter
@@ -887,5 +923,5 @@ class HorseResult():
 
 # TODO 単一メソッド動作確認用、後で消す
 if __name__ == '__main__':
-    rg = GetRaceData('202212345601')
+    rg = GetRaceData('202147012101')
     rg.main()

@@ -4,7 +4,7 @@ import pastnarracedata
 import sys
 import time
 import traceback
-from common import logger, jst, soup as Soup, line, validate
+from common import logger, jst, soup as Soup, line, validate, wordchange
 from datetime import datetime, timedelta
 from tqdm import tqdm
 
@@ -74,7 +74,7 @@ class RaceData():
 
             # レースIDからレース情報を取得する
             for race_id in race_id_list:
-                race_data = pastnarracedata.GetRaceData(race_id, self.output_type)
+                race_data = pastnarracedata.GetRaceData(wordchange.rm(race_id), self.output_type)
                 race_data.main()
 
             time.sleep(3)
