@@ -125,6 +125,10 @@ class GetRaceData():
                 self.error_output(f'{babacodechange.netkeiba(self.baba_id)}{self.race_no}R(race_id:{self.race_id})のレース結果取得処理でエラー', e, traceback.format_exc())
                 return
 
+            # レース中止フラグチェック
+            if not self.race_flg:
+                return
+
         # TODO 楽天から残りの要素取得
 
         # インスタンス変数確認用
@@ -252,6 +256,9 @@ class GetRaceData():
             # 不変の馬情報格納用(馬名、父・母名...)
             horse_char_info = HorseCharInfo()
 
+            # レースID追加
+            horse_race_info.race_id = self.race_id
+
             # 所属や馬名の書いてる枠
             horse_type = info.find('dt', class_ = 'Horse02')
 
@@ -375,16 +382,19 @@ class GetRaceData():
     def get_result(self):
         '''レース結果ページからレース結果を抽出する'''
 
+        url = 'https://nar.netkeiba.com/race/result.html?race_id=' + self.race_id
+
         # TODO owner, pass_rank, prizeが取れない
         # レース結果(HTML全体)
-        soup = Soup.get_soup('https://nar.netkeiba.com/race/result.html?race_id=' + self.race_id)
+        soup = Soup.get_soup(url)
 
         # read_htmlで抜けなくなる余分なタグを除去後に結果テーブル抽出
         tables = pd.read_html(str(soup).replace('<diary_snap_cut>', '').replace('</diary_snap_cut>', ''))
 
         # 結果ページのテーブル数が少ない場合はレースが行われていないとみなし、出力を行わない
-        if len(table) <= 2:
+        if len(tables) <= 2:
             self.logger.info(f'{babacodechange.netkeiba(self.baba_id)}{self.race_no}R(race_id:{self.race_id})のレース結果ページのデータが不足しているため記録を行いません')
+            self.logger.info(f'取得先URL:{url}')
             self.race_flg = False
             return
 
@@ -398,6 +408,9 @@ class GetRaceData():
         # TODO 除外・取消馬の処理
         for i, index in enumerate(table.index):
             horse_result = HorseResult()
+
+            # レースID追加
+            horse_result.race_id = self.race_id
 
             # 結果テーブルの列取得
             row = table.loc[index]
@@ -724,6 +737,7 @@ class HorseRaceInfo():
     '''各馬の発走前のデータを保持するデータクラス'''
     def __init__(self):
         self.__horse_id = '' # 競走馬ID(netkeiba準拠、複合PK)
+        self.__race_id = '' # レースID(netkeiba準拠、PK) TODO
         self.__frame_no = '' # 枠番
         self.__horse_no = '' # 馬番
         self.__age = '' # 馬齢
@@ -749,6 +763,8 @@ class HorseRaceInfo():
     # getter
     @property
     def horse_id(self): return self.__horse_id
+    @property
+    def race_id(self): return self.__race_id
     @property
     def frame_no(self): return self.__frame_no
     @property
@@ -795,6 +811,8 @@ class HorseRaceInfo():
     # setter
     @horse_id.setter
     def horse_id(self, horse_id): self.__horse_id = horse_id
+    @race_id.setter
+    def race_id(self, race_id): self.__race_id = race_id
     @frame_no.setter
     def frame_no(self, frame_no): self.__frame_no = frame_no
     @horse_no.setter
@@ -881,6 +899,7 @@ class HorseResult():
     '''各馬のレース結果のデータクラス'''
     def __init__(self):
         self.__horse_id = '' # 競走馬ID(netkeiba準拠、複合PK)
+        self.__race_id = '' # レースID(netkeiba準拠、PK) TODO
         self.__horse_no = '' # 馬番
         self.__rank = '' # 着順
         self.__goal_time = '' # タイム
@@ -891,6 +910,8 @@ class HorseResult():
     # getter
     @property
     def horse_id(self): return self.__horse_id
+    @property
+    def race_id(self): return self.__race_id
     @property
     def horse_no(self): return self.__horse_no
     @property
@@ -907,6 +928,8 @@ class HorseResult():
     # setter
     @horse_id.setter
     def horse_id(self, horse_id): self.__horse_id = horse_id
+    @race_id.setter
+    def race_id(self, race_id): self.__race_id = race_id
     @horse_no.setter
     def horse_no(self, horse_no): self.__horse_no = horse_no
     @rank.setter
