@@ -31,6 +31,7 @@ class GetRaceData():
         self.baba_id = self.race_info.baba_id = race_id[4:6]
         self.race_no = self.race_info.race_no = race_id[10:]
         self.output_type = output_type
+        self.race_flg = True
 
     # getter
     @property
@@ -250,6 +251,7 @@ class GetRaceData():
         fc = soup.select('div[class="fc"]')
 
         for info in fc:
+            # TODO HorseInfoはここに移植して2つに分ける
             horse_info = ''
 
             horse_type = info.find('div', class_ = 'Horse02')
@@ -380,7 +382,6 @@ class GetRaceData():
                 horse_dict[no][1].diff = row['着差']
             else:
                 horse_dict[no][1].diff = row['着差']
-            horse_dict[no][1].pass_rank = row['通過']
             horse_dict[no][1].agari = row['上り']
             if not np.isnan(row['賞金(万円)']):
                 horse_dict[no][1].prize = row['賞金(万円)']
@@ -593,7 +594,7 @@ class RaceProgressInfo():
     @lap_time.setter
     def lap_time(self, lap_time): self.__lap_time = lap_time
 
-class HorseInfo():
+class HorseInfo(): # TODO 地方と同じになるように分割
     '''各馬の発走前のデータを保持するデータクラス'''
     def __init__(self):
         self.__frame_no = '' # 枠番o
@@ -729,17 +730,19 @@ class HorseResult():
     '''各馬のレース結果のデータクラス'''
     def __init__(self):
         self.__horse_id = '' # 競走馬ID(netkeiba準拠、複合PK) TODO
+        self.__race_id = '' # レースID(netkeiba準拠、PK) TODO
         self.__horse_no = '' # 馬番(複合PK)o
         self.__rank = '' # 着順o
         self.__goal_time = '' # タイムo
         self.__diff = '' # 着差o
-        self.__pass_rank = '' # 通過順o
         self.__agari = '' # 上り3Fo
         self.__prize = '0' # 賞金o
 
     # getter
     @property
     def horse_id(self): return self.__horse_id
+    @property
+    def race_id(self): return self.__race_id
     @property
     def horse_no(self): return self.__horse_no
     @property
@@ -749,8 +752,6 @@ class HorseResult():
     @property
     def diff(self): return self.__diff
     @property
-    def pass_rank(self): return self.__pass_rank
-    @property
     def agari(self): return self.__agari
     @property
     def prize(self): return self.__prize
@@ -758,6 +759,8 @@ class HorseResult():
     # setter
     @horse_id.setter
     def horse_id(self, horse_id): self.__horse_id = horse_id
+    @race_id.setter
+    def race_id(self, race_id): self.__race_id = race_id
     @horse_no.setter
     def horse_no(self, horse_no): self.__horse_no = horse_no
     @rank.setter
@@ -766,8 +769,6 @@ class HorseResult():
     def goal_time(self, goal_time): self.__goal_time = goal_time
     @diff.setter
     def diff(self, diff): self.__diff = diff
-    @pass_rank.setter
-    def pass_rank(self, pass_rank): self.__pass_rank = pass_rank
     @agari.setter
     def agari(self, agari): self.__agari = agari
     @prize.setter

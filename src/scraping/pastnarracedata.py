@@ -737,7 +737,7 @@ class HorseRaceInfo():
     '''各馬の発走前のデータを保持するデータクラス'''
     def __init__(self):
         self.__horse_id = '' # 競走馬ID(netkeiba準拠、複合PK)
-        self.__race_id = '' # レースID(netkeiba準拠、PK) TODO
+        self.__race_id = '' # レースID(netkeiba準拠、PK)
         self.__frame_no = '' # 枠番
         self.__horse_no = '' # 馬番
         self.__age = '' # 馬齢
@@ -899,7 +899,7 @@ class HorseResult():
     '''各馬のレース結果のデータクラス'''
     def __init__(self):
         self.__horse_id = '' # 競走馬ID(netkeiba準拠、複合PK)
-        self.__race_id = '' # レースID(netkeiba準拠、PK) TODO
+        self.__race_id = '' # レースID(netkeiba準拠、PK)
         self.__horse_no = '' # 馬番
         self.__rank = '' # 着順
         self.__goal_time = '' # タイム
