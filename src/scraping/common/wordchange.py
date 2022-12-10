@@ -10,7 +10,7 @@ def half_to_full(word):
 
 def rm(str):
     '''改行・空白を除去'''
-    return str.replace('\n', '').replace(' ', '')
+    return str.replace('\n', '').replace('\r', '').replace('\xa0', '').replace(' ', '')
 
 def change_seconds(minutes_time):
     '''タイムを秒に変換する

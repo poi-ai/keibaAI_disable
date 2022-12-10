@@ -239,7 +239,13 @@ class GetRaceData():
         if 'Icon_GradeType14' in str(race_name):
             self.race_info.grade += '待選'
 
-        self.race_info.horse_num = race_data_list[6].replace('頭', '')
+        # 登録頭数
+        self.race_info.regist_num = race_data_list[6].replace('頭', '')
+
+        # 出走頭数(登録頭数 - 取消・除外頭数)
+        cancel_num = soup.find('td', class_ = 'Cancel_NoData')
+        if cancel_num == None: cancel_num = []
+        self.race_info.run_num = str(int(self.race_info.regist_num) - len(cancel_num))
 
         # レース賞金
         prize = re.search('本賞金:(.+)、(.+)、(.+)、(.+)、(.+)万円', race_data_list[8])
@@ -295,10 +301,14 @@ class GetRaceData():
             horse_race_info.trainer_belong = trainer[0]
             horse_race_info.trainer = wordchange.rm(trainer[1])
 
-            # netkeiba独自の調教師ID
+            # 調教師が井樋氏の場合はnetekeibaのバグで所属が出ないので手動で設定
+            if horse_race_info.trainer == '井樋明正':
+                horse_race_info.trainer_belong = '佐賀'
+
+            # netkeiba独自の調教師ID TODO 結果ページなら確実
             trainer_id = re.search('db.netkeiba.com/trainer/(\d+)/', str(info))
             if trainer_id != None:
-                horse_race_info.trainer_id = trainer_id.groups()[0]
+                horse_race_info.trainer_id = str(trainer_id.groups()[0])
 
             # 出走間隔(週)
             blank = info.find('dt', class_ = 'Horse06').text
@@ -327,9 +337,14 @@ class GetRaceData():
             elif 'horse_race_type05' in running_type:
                 horse_race_info.running_type = '自在'
 
-            # 馬体重
+            # 馬体重(全走計不は0と表示されるため対応不必要)
             weight = re.search('(\d+)kg\((.+)\)', info.find('dt', class_ = 'Horse07').text)
-            # TODO 計不対応
+
+            # 計不対応
+            if info.find('dt', class_ = 'Horse07').text == '計不':
+                horse_race_info.weight = '計不'
+                horse_race_info.weight_change = '計不'
+
             if weight != None:
                 horse_race_info.weight = weight.groups()[0]
                 horse_race_info.weight_change = str(int(weight.groups()[1]))
@@ -343,7 +358,7 @@ class GetRaceData():
 
             # 馬番・枠番
             horse_race_info.horse_no = str(i + 1)
-            horse_race_info.frame_no = self.frame_no_culc(self.race_info.horse_num, int(i + 1))
+            horse_race_info.frame_no = self.frame_no_culc(self.race_info.regist_num, int(i + 1))
 
             self.horse_race_info_dict[str(i + 1)] = horse_race_info
             self.horse_char_info_dict[str(i + 1)] = horse_char_info
@@ -365,7 +380,7 @@ class GetRaceData():
             # TODO 騎手ID未存在時、騎手名だけ
             jockey = re.search('db.netkeiba.com/jockey/(\d+)/">(.+)</a>', str(info))
             if jockey != None:
-                horse_race_info.jockey_id = jockey.groups()[0]
+                horse_race_info.jockey_id = str(jockey.groups()[0])
                 horse_race_info.jockey = jockey.groups()[1]
 
             # 斤量
@@ -384,7 +399,7 @@ class GetRaceData():
 
         url = 'https://nar.netkeiba.com/race/result.html?race_id=' + self.race_id
 
-        # TODO owner, pass_rank, prizeが取れない
+        # TODO ownerが取れない
         # レース結果(HTML全体)
         soup = Soup.get_soup(url)
 
@@ -404,6 +419,9 @@ class GetRaceData():
         # 1着馬の馬番
         winner_horse_no = 0
 
+        # 同着チェックのため着順だけ先にリスト化
+        rank_list = [str(table.loc[idx]['着順']) for idx in table.index]
+
         # 列ごとに切り出し
         # TODO 除外・取消馬の処理
         for i, index in enumerate(table.index):
@@ -421,26 +439,54 @@ class GetRaceData():
             horse_result.goal_time = row['タイム']
 
             # 着差、1着馬は2着との差をマイナスに
-            # TODO 同着時対応
             if i == 0:
+                # 1着馬は2着馬記録時に同時に記録する
                 winner_horse_no = str(row['馬番'])
             elif i == 1:
-                self.horse_result_dict[winner_horse_no].diff = '-' + str(row['着差'])
+                if row['着差'] == '同着':
+                    self.horse_result_dict[winner_horse_no].diff = str(row['着差'])
+                else:
+                    self.horse_result_dict[winner_horse_no].diff = '-' + str(row['着差'])
                 horse_result.diff = row['着差']
             else:
                 horse_result.diff = row['着差']
 
-            # TODO 同着時計算
-            if str(row['着順']) == '1':
-                horse_result.prize = str(self.race_info.first_prize)
-            elif str(row['着順']) == '2':
-                horse_result.prize = str(self.race_info.second_prize)
-            elif str(row['着順']) == '3':
-                horse_result.prize = str(self.race_info.third_prize)
-            elif str(row['着順']) == '4':
-                horse_result.prize = str(self.race_info.fourth_prize)
-            elif str(row['着順']) == '5':
-                horse_result.prize = str(self.race_info.fifth_prize)
+            # 同着時の賞金計算
+            if row['着差'] == '同着':
+                if 1 <= int(row['着順']) <= 5:
+                    # 同着頭数取得
+                    same_rank_count = sum(1 for rank in rank_list if str(rank) == str(row['着順']))
+
+                    # 同着馬全頭の総賞金を計算
+                    sum_prize = 0.0
+
+                    for i in range(int(row['着順']), int(row['着順']) + same_rank_count):
+                        if i == 1:
+                            sum_prize += float(self.race_info.first_prize)
+                        elif i == 2:
+                            sum_prize += float(self.race_info.second_prize)
+                        elif i == 3:
+                            sum_prize += float(self.race_info.third_prize)
+                        elif i == 4:
+                            sum_prize += float(self.race_info.fourth_prize)
+                        elif i == 5:
+                            sum_prize += float(self.race_info.fifth_prize)
+
+                    # 同着頭数で割って賞金を計算(下2桁切り捨て)
+                    horse_result.prize = str(format(float(sum_prize / same_rank_count), '.1f'))
+
+            # 同着でない場合
+            else:
+                if str(row['着順']) == '1':
+                    horse_result.prize = str(self.race_info.first_prize)
+                elif str(row['着順']) == '2':
+                    horse_result.prize = str(self.race_info.second_prize)
+                elif str(row['着順']) == '3':
+                    horse_result.prize = str(self.race_info.third_prize)
+                elif str(row['着順']) == '4':
+                    horse_result.prize = str(self.race_info.fourth_prize)
+                elif str(row['着順']) == '5':
+                    horse_result.prize = str(self.race_info.fifth_prize)
 
             horse_result.agari = row['後3F']
 
@@ -580,7 +626,8 @@ class RaceInfo():
         self.__third_prize = '' # 3着賞金
         self.__fourth_prize = '' # 4着賞金
         self.__fifth_prize = '' # 5着賞金
-        self.__horse_num = '' # 出走頭数
+        self.__regist_num = '' # 登録頭数
+        self.__run_num = '' # 出走頭数
 
     # getter
     @property
@@ -634,7 +681,9 @@ class RaceInfo():
     @property
     def fifth_prize(self): return self.__fifth_prize
     @property
-    def horse_num(self): return self.__horse_num
+    def regist_num(self): return self.__regist_num
+    @property
+    def run_num(self): return self.__run_num
 
     # setter
     @race_id.setter
@@ -687,8 +736,10 @@ class RaceInfo():
     def fourth_prize(self, fourth_prize): self.__fourth_prize = fourth_prize
     @fifth_prize.setter
     def fifth_prize(self, fifth_prize): self.__fifth_prize = fifth_prize
-    @horse_num.setter
-    def horse_num(self, horse_num): self.__horse_num = horse_num
+    @regist_num.setter
+    def regist_num(self, regist_num): self.__regist_num = regist_num
+    @run_num.setter
+    def run_num(self, run_num): self.__run_num = run_num
 
 class RaceProgressInfo():
     '''レース全体のレース結果を保持するデータクラス'''
@@ -946,5 +997,5 @@ class HorseResult():
 
 # TODO 単一メソッド動作確認用、後で消す
 if __name__ == '__main__':
-    rg = GetRaceData('202147012101')
+    rg = GetRaceData('202242060310')
     rg.main()
