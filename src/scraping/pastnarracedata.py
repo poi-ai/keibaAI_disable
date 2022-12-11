@@ -129,6 +129,13 @@ class GetRaceData():
             if not self.race_flg:
                 return
 
+            # 楽天競馬から補完データの取得
+            try:
+                self.get_rakuten_umabashira()
+            except Exception as e:
+                self.error_output(f'{babacodechange.netkeiba(self.baba_id)}{self.race_no}R(race_id:{self.race_id})の楽天競馬馬柱取得処理でエラー', e, traceback.format_exc())
+                return
+
         # TODO 楽天から残りの要素取得
 
         # インスタンス変数確認用
@@ -235,7 +242,7 @@ class GetRaceData():
         elif 'Icon_GradeType18' in str(race_name):
             self.race_info.grade = '1勝'
 
-        # TODO 待選とは何かわからないが、暫定処理としてグレードの末尾に付けておく
+        # 待選、暫定処理としてグレードの末尾に付けておく
         if 'Icon_GradeType14' in str(race_name):
             self.race_info.grade += '待選'
 
@@ -289,7 +296,7 @@ class GetRaceData():
                 horse_char_info.horse_id = m.groups()[0]
 
             # 馬名
-            horse_char_info.horse_name = horse_type.text.replace('\n', '')
+            horse_char_info.horse_name = wordchange.rm(horse_type.text)
 
             # 父名・母名・母父名
             horse_char_info.father = info.find('dt', class_ = 'Horse01').text
@@ -353,8 +360,8 @@ class GetRaceData():
             odds = re.search('(\d+\.\d)\((.+)人気\)', wordchange.rm(info.find('dt', class_ = 'Horse07').text))
             # TODO 取消馬対応
             if odds != None:
-                horse_race_info.popular = odds.groups()[0]
-                horse_race_info.win_odds = odds.groups()[1]
+                horse_race_info.win_odds = odds.groups()[0]
+                horse_race_info.popular = odds.groups()[1]
 
             # 馬番・枠番
             horse_race_info.horse_no = str(i + 1)
@@ -377,7 +384,6 @@ class GetRaceData():
                 horse_char_info.hair_color = m.groups()[2]
 
             # 騎手名・netkeiba独自の騎手ID
-            # TODO 騎手ID未存在時、騎手名だけ
             jockey = re.search('db.netkeiba.com/jockey/(\d+)/">(.+)</a>', str(info))
             if jockey != None:
                 horse_race_info.jockey_id = str(jockey.groups()[0])
@@ -393,6 +399,37 @@ class GetRaceData():
 
     def get_bannei_umabashira(self):
         pass
+
+    def get_rakuten_umabashira(self):
+        '''netkeibaから拾えないデータ(減量騎手・馬主名・生産牧場)を楽天競馬のサイトから取得する'''
+
+        url = f'https://keiba.rakuten.co.jp/race_card/list/RACEID/{self.race_date}{babacodechange.netkeiba_to_rakuten(self.baba_id)}000000{self.race_no}'
+
+        soup = Soup.get_soup(url)
+        table = soup.find('div', class_ = 'raceCardField')
+
+        names = table.find_all('td', class_ = 'name')
+        profiles = table.find_all('td', class_ = 'profile')
+
+        for horse_row in range(len(names)):
+            # 馬主と生産牧場を取得
+            horse_info = wordchange.rm(str(names[horse_row].find('div', class_ = 'append'))).split('<br/>')
+            self.horse_race_info_dict[str(horse_row + 1)].owner = horse_info[1]
+            self.horse_char_info_dict[str(horse_row + 1)].farm = horse_info[2].replace('生産</div>', '')
+
+            # 減量騎手のマークを取得
+            jockey_info = re.findall('JOCKEYID/\d+" target="_blank">.+</a>', str(profiles[horse_row]))
+
+            if '▲' in jockey_info[0]:
+                self.horse_race_info_dict[str(horse_row + 1)].jockey_handi = '▲'
+            elif '△' in jockey_info[0]:
+                self.horse_race_info_dict[str(horse_row + 1)].jockey_handi = '△'
+            elif '☆' in jockey_info[0]:
+                self.horse_race_info_dict[str(horse_row + 1)].jockey_handi = '☆'
+            elif '★' in jockey_info[0]:
+                self.horse_race_info_dict[str(horse_row + 1)].jockey_handi = '★'
+            elif '◇' in jockey_info[0]:
+                self.horse_race_info_dict[str(horse_row + 1)].jockey_handi = '◇'
 
     def get_result(self):
         '''レース結果ページからレース結果を抽出する'''
@@ -796,7 +833,7 @@ class HorseRaceInfo():
         self.__load = '' # 斤量
         self.__jockey_id = '' # 騎手ID
         self.__jockey = '' # 騎手名
-        self.__jockey_handi = '' # 騎手減量 [ TODO 出馬表から取れない]
+        self.__jockey_handi = '' # 騎手減量
         self.__win_odds = '' # 単勝オッズ
         self.__popular = '' # 人気
         self.__weight = '' # 馬体重
@@ -804,7 +841,7 @@ class HorseRaceInfo():
         self.__trainer_id = '' # 調教師ID
         self.__trainer = '' # 調教師名
         self.__trainer_belong = '' # 調教師所属厩舎
-        self.__owner = '' # 馬主名 [ TODO 出馬表から取れない]
+        self.__owner = '' # 馬主名
         self.__blank = '' # レース間隔
         self.__running_type = '' # 脚質(←netkeibaの主観データ？)
         self.__country = '' # 所属(外国馬か)
@@ -917,6 +954,7 @@ class HorseCharInfo():
         self.__mother = '' # 母名
         self.__grandfather = '' # 母父名
         self.__hair_color = '' # 毛色
+        self.__farm = '' # 生産牧場
 
     # getter
     @property
@@ -931,6 +969,8 @@ class HorseCharInfo():
     def grandfather(self): return self.__grandfather
     @property
     def hair_color(self): return self.__hair_color
+    @property
+    def farm(self): return self.__farm
 
     # setter
     @horse_id.setter
@@ -945,6 +985,8 @@ class HorseCharInfo():
     def grandfather(self, grandfather): self.__grandfather = grandfather
     @hair_color.setter
     def hair_color(self, hair_color): self.__hair_color = hair_color
+    @farm.setter
+    def farm(self, farm): self.__farm = farm
 
 class HorseResult():
     '''各馬のレース結果のデータクラス'''

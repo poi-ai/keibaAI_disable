@@ -38,6 +38,8 @@ class RaceData():
     def latest_date(self, latest_date): self.__latest_date = latest_date
     @oldest_date.setter
     def oldest_date(self, oldest_date): self.__oldest_date = oldest_date
+    @output_type.setter
+    def output_type(self, output_type): self.__output_type = output_type
 
     def main(self):
         '''主処理、各メソッドの呼び出し'''
@@ -188,7 +190,9 @@ if __name__ == '__main__':
 
     # 初期処理
     try:
-        if len(sys.argv) >= 3:
+        if len(sys.argv) >= 4:
+            rd = RaceData(sys.argv[1], sys.argv[2], sys.argv[3])
+        elif len(sys.argv) == 3:
             rd = RaceData(sys.argv[1], sys.argv[2])
         elif len(sys.argv) == 2:
             rd = RaceData(sys.argv[1])
