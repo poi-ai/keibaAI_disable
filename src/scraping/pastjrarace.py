@@ -167,7 +167,7 @@ class RaceData():
             race_url = link.get('href')
             # レース結果ページのみ取得しその中からレースIDを切り出す
             if 'result' in race_url:
-                race_id_list.append(race_url[28:40])
+                race_id_list.append(race_url[27:40])
 
         return race_id_list
 

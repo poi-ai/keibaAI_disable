@@ -136,18 +136,6 @@ class GetRaceData():
                 self.error_output(f'{babacodechange.netkeiba(self.baba_id)}{self.race_no}R(race_id:{self.race_id})の楽天競馬馬柱取得処理でエラー', e, traceback.format_exc())
                 return
 
-        # TODO 楽天から残りの要素取得
-
-        # インスタンス変数確認用
-        #for index in self.horse_race_info_dict:
-        #    horse_race_info = vars(self.horse_race_info_dict[index])
-        #    df = pd.DataFrame.from_dict(horse_race_info, orient='index').T
-        #    output.csv(df, 'horse_race_info')
-        #for index in horse_result_dict:
-        #    horse_result = vars(horse_result_dict[index])
-        #    df = pd.DataFrame.from_dict(horse_result, orient='index').T
-        #    output.csv(df, 'horse_result')
-
         # 取得したデータをCSV出力
         try:
             self.output_csv()
@@ -157,7 +145,9 @@ class GetRaceData():
 
     def get_umabashira(self):
         '''馬柱から発走前のデータを取得する'''
-        soup = Soup.get_soup('https://nar.netkeiba.com/race/shutuba_past.html?race_id=' + self.race_id)
+        url = 'https://nar.netkeiba.com/race/shutuba_past.html?race_id=' + self.race_id
+
+        soup = Soup.get_soup(url)
 
         # コース情報や馬場状態の枠
         race_data_01 = soup.find('div', class_ = 'RaceData01')
@@ -173,6 +163,7 @@ class GetRaceData():
         # 当日公表データが少ない(=レース中止)の場合弾く
         if len(race_data_list) < 4:
             self.logger.info(f'{babacodechange.netkeiba(self.baba_id)}{self.race_no}R(race_id:{self.race_id})のレースデータが不足しているため記録を行いません')
+            self.logger.info(f'取得先URL:{url}')
             self.race_flg = False
             return
 
@@ -308,7 +299,7 @@ class GetRaceData():
             horse_race_info.trainer_belong = trainer[0]
             horse_race_info.trainer = wordchange.rm(trainer[1])
 
-            # 調教師が井樋氏の場合はnetekeibaのバグで所属が出ないので手動で設定
+            # 調教師が井樋氏の場合はnetekeibaのバグで所属が出ないので手動で設定 TODO 他にもありそう
             if horse_race_info.trainer == '井樋明正':
                 horse_race_info.trainer_belong = '佐賀'
 
@@ -358,7 +349,6 @@ class GetRaceData():
 
             # 単勝オッズ
             odds = re.search('(\d+\.\d)\((.+)人気\)', wordchange.rm(info.find('dt', class_ = 'Horse07').text))
-            # TODO 取消馬対応
             if odds != None:
                 horse_race_info.win_odds = odds.groups()[0]
                 horse_race_info.popular = odds.groups()[1]
@@ -436,7 +426,6 @@ class GetRaceData():
 
         url = 'https://nar.netkeiba.com/race/result.html?race_id=' + self.race_id
 
-        # TODO ownerが取れない
         # レース結果(HTML全体)
         soup = Soup.get_soup(url)
 
@@ -460,7 +449,6 @@ class GetRaceData():
         rank_list = [str(table.loc[idx]['着順']) for idx in table.index]
 
         # 列ごとに切り出し
-        # TODO 除外・取消馬の処理
         for i, index in enumerate(table.index):
             horse_result = HorseResult()
 
