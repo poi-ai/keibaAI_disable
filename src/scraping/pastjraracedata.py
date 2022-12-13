@@ -1,6 +1,7 @@
-import numpy as np
+import package
 import pandas as pd
 import re
+import traceback
 from common import line, soup as Soup, output, wordchange, logger as lg, babacodechange
 
 class GetRaceData():
@@ -123,7 +124,12 @@ class GetRaceData():
         race_data_01 = soup.find('div', class_ = 'RaceData01')
         race_data_list = wordchange.rm(race_data_01.text).split('/')
 
-        # TODO レースデータ不足チェック
+        # 当日公表データが少ない(=レース中止)の場合弾く
+        if len(race_data_list) < 4:
+            self.logger.info(f'{babacodechange.netkeiba(self.baba_id)}{self.race_no}R(race_id:{self.race_id})のレースデータが不足しているため記録を行いません')
+            self.logger.info(f'取得先URL:{url}')
+            self.race_flg = False
+            return
 
         # 発走時刻取得
         self.race_info.race_time = race_data_list[0].replace('発走', '')
@@ -184,10 +190,10 @@ class GetRaceData():
         # 出走条件等の抽出
         race_data_02 = soup.find('div', class_ = 'RaceData02')
 
-        # 開催回/日
+        # 開催回/日・競馬場コード
         race_data_list = race_data_02.text.split('\n')
         self.race_info.hold_no = race_data_list[1].replace('回', '')
-        # TODO 馬場コード
+        self.race_info.baba_id = babacodechange.netkeiba(race_data_list[2])
         self.race_info.hold_date = race_data_list[3].replace('日目', '')
 
         # 出走条件(馬齢/クラス)
@@ -282,7 +288,10 @@ class GetRaceData():
         # 登録頭数
         self.race_info.regist_num = race_data_list[9].replace('頭', '')
 
-        # TODO 出走頭数計算
+        # 出走頭数計算(登録頭数 - 取消・除外頭数)
+        cancel_num = soup.find('td', class_ = 'Cancel_NoData')
+        if cancel_num == None: cancel_num = []
+        self.race_info.run_num = str(int(self.race_info.regist_num) - len(cancel_num))
 
         # レース賞金
         prize = re.search('本賞金:(\d+),(\d+),(\d+),(\d+),(\d+)万円', race_data_list[11])
@@ -320,18 +329,29 @@ class GetRaceData():
             if '<span class="Mark">B</span>' in str(horse_type):
                 horse_race_info.blinker = '1'
 
-            # TODO 馬ID取得
+            # netkeiba独自の馬ID
+            m = re.search('db.netkeiba.com/horse/(\d+)/"', str(horse_type))
+            if m != None:
+                horse_race_info.horse_id = m.groups()[0]
+                horse_char_info.horse_id = m.groups()[0]
 
-            # TODO 馬名取得
+            # 馬名
+            horse_char_info.horse_name = wordchange.rm(horse_type.text).replace('B', '')
 
             # 父名・母名・母父名
             horse_char_info.father = info.find('div', class_ = 'Horse01').text
             horse_char_info.mother = info.find('div', class_ = 'Horse03').text
             horse_char_info.grandfather = info.find('div', class_ = 'Horse04').text.replace('(', '').replace(')', '')
 
-            # TODO 調教師・調教師所属
+            # 調教師・調教師所属 TODO 何人か所属が表示されない
+            trainer = info.find('div', class_ = 'Horse05').text.split('・')
+            horse_race_info.trainer_belong = trainer[0]
+            horse_race_info.trainer = wordchange.rm(trainer[1])
 
-            # TODO netkeiba独自の調教師ID
+            # netkeiba独自の調教師ID TODO 何人かIDが表示されない
+            trainer_id = re.search('db.netkeiba.com/trainer/(\d+)/', str(info))
+            if trainer_id != None:
+                horse_race_info.trainer_id = str(trainer_id.groups()[0])
 
             # 出走間隔(週)
             blank = info.find('div', class_ = 'Horse06').text

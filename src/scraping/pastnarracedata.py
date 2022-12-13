@@ -289,16 +289,12 @@ class GetRaceData():
             horse_char_info.mother = info.find('dt', class_ = 'Horse03').text
             horse_char_info.grandfather = info.find('dt', class_ = 'Horse04').text.replace('(', '').replace(')', '')
 
-            # 調教師・調教師所属
+            # 調教師・調教師所属 TODO 何人か所属が表示されない
             trainer = info.find('dt', class_ = 'Horse05').text.split('・')
             horse_race_info.trainer_belong = trainer[0]
             horse_race_info.trainer = wordchange.rm(trainer[1])
 
-            # 調教師が井樋氏の場合はnetekeibaのバグで所属が出ないので手動で設定 TODO 他にもありそう
-            if horse_race_info.trainer == '井樋明正':
-                horse_race_info.trainer_belong = '佐賀'
-
-            # netkeiba独自の調教師ID TODO 結果ページなら確実
+            # netkeiba独自の調教師ID TODO 何人かIDが表示されない
             trainer_id = re.search('db.netkeiba.com/trainer/(\d+)/', str(info))
             if trainer_id != None:
                 horse_race_info.trainer_id = str(trainer_id.groups()[0])
