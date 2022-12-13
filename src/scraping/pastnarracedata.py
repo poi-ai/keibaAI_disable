@@ -81,13 +81,8 @@ class GetRaceData():
     @output_type.setter
     def output_type(self, output_type): self.__output_type = output_type
 
-    '''
-    TODO
-    * レース前に実際に取れるのは馬柱のみなので、レース情報などは馬柱から取得する
-    * 騎手減量がリアルタイム レース結果からしか取得できないので要検討
-    '''
     def main(self):
-
+        '''主処理、各処理のメソッドを呼び出す'''
         # ばんえいとそれ以外で取得ロジックを変える
         if self.baba_id == '65':
             # TODO 後で消す
