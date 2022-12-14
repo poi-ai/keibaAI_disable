@@ -1,6 +1,8 @@
+import json
 import package
 import pandas as pd
 import re
+import requests
 import traceback
 from common import line, soup as Soup, output, wordchange, logger as lg, babacodechange
 
@@ -301,6 +303,14 @@ class GetRaceData():
         self.race_info.fourth_prize = prize.groups()[3]
         self.race_info.fifth_prize = prize.groups()[4]
 
+        # 非公開APIからオッズ一覧を取得する
+        try:
+            odds_list = self.get_odds_list()
+        except Exception as e:
+            self.error_output(f'{babacodechange.netkeiba(self.baba_id)}{self.race_no}R(race_id:{self.race_id})のオッズ取得APIでエラー\n{url}', e, traceback.format_exc())
+            # APIだけおかしい場合があるためreturnにはしない
+            odds_list = []
+
         # 各馬の情報取得
         fc = soup.select('div[class="fc"]')
         for i, info in enumerate(fc):
@@ -329,27 +339,24 @@ class GetRaceData():
             if '<span class="Mark">B</span>' in str(horse_type):
                 horse_race_info.blinker = '1'
 
-            # netkeiba独自の馬ID
-            m = re.search('db.netkeiba.com/horse/(\d+)/"', str(horse_type))
+            # netkeiba独自の競走馬ID/馬名 TODO
+            m = re.search('db.netkeiba.com/horse/(\d+)/" target="_blank">(.+)</a>', str(horse_type))
             if m != None:
-                horse_race_info.horse_id = m.groups()[0]
-                horse_char_info.horse_id = m.groups()[0]
-
-            # 馬名
-            horse_char_info.horse_name = wordchange.rm(horse_type.text).replace('B', '')
+                horse_race_info.horse_id = horse_char_info.horse_id = m.groups()[0]
+                horse_char_info.horse_name = wordchange.rm(m.groups()[1])
 
             # 父名・母名・母父名
             horse_char_info.father = info.find('div', class_ = 'Horse01').text
             horse_char_info.mother = info.find('div', class_ = 'Horse03').text
             horse_char_info.grandfather = info.find('div', class_ = 'Horse04').text.replace('(', '').replace(')', '')
 
-            # 調教師・調教師所属 TODO 何人か所属が表示されない
+            # 調教師・調教師所属
             trainer = info.find('div', class_ = 'Horse05').text.split('・')
             horse_race_info.trainer_belong = trainer[0]
             horse_race_info.trainer = wordchange.rm(trainer[1])
 
-            # netkeiba独自の調教師ID TODO 何人かIDが表示されない
-            trainer_id = re.search('db.netkeiba.com/trainer/(\d+)/', str(info))
+            # netkeiba独自の調教師ID
+            trainer_id = re.search('db.netkeiba.com/trainer/result/recent/(\d+)', str(info))
             if trainer_id != None:
                 horse_race_info.trainer_id = str(trainer_id.groups()[0])
 
@@ -363,7 +370,7 @@ class GetRaceData():
                 if blank_week == None:
                     horse_race_info.blank = '-1'
                 else:
-                    horse_race_info.blank = prize.groups()[0]
+                    horse_race_info.blank = blank_week.groups()[0]
 
             # 脚質(netkeiba独自)
             running_type = str(info.find('div', class_ = 'Horse06'))
@@ -380,11 +387,30 @@ class GetRaceData():
             elif 'horse_race_type05' in running_type:
                 horse_race_info.running_type = '自在'
 
-            # TODO 馬体重
+            # 馬体重
+            weight = re.search('(\d+)kg\((.+)\)', info.find('dt', class_ = 'Horse07').text)
 
-            # TODO 計不対応
+            # 計不対応(前走計不は0と表示されるため対応不必要)
+            if info.find('dt', class_ = 'Horse07').text == '計不':
+                horse_race_info.weight = '計不'
+                horse_race_info.weight_change = '計不'
 
-            # TODO 単勝オッズ
+            if weight != None:
+                horse_race_info.weight = weight.groups()[0]
+                horse_race_info.weight_change = str(int(weight.groups()[1]))
+
+            # 単勝オッズ/人気
+            if odds_list != []:
+                # 念のためキーエラー対策。LINEには送らずログにだけ出力
+                try:
+                    # 除外・取消馬でない
+                    if odds_list[str(i + 1)][0] != '-3.0':
+                        horse_race_info.win_odds = odds_list[str(i + 1)][0]
+
+                    if odds_list[str(i + 1)][1] != '9999':
+                        horse_race_info.popular = odds_list[str(i + 1)][1]
+                except Exception as e:
+                    self.error_output(f'{babacodechange.netkeiba(self.baba_id)}{self.race_no}R(race_id:{self.race_id})のオッズ追加処理でエラー\n{url}', e, traceback.format_exc(), False)
 
             # 馬番・枠番
             horse_race_info.horse_no = str(i + 1)
@@ -436,7 +462,12 @@ class GetRaceData():
         # read_htmlで抜けなくなる余分なタグを除去後に結果テーブル抽出
         tables = pd.read_html(str(soup).replace('<diary_snap_cut>', '').replace('</diary_snap_cut>', ''))
 
-        # TODO 結果テーブル不足(=レース未成立)の場合はじく処理
+        # 結果テーブル不足(=レース未成立)の場合はじく
+        if len(tables) <= 2:
+            self.logger.info(f'{babacodechange.netkeiba(self.baba_id)}{self.race_no}R(race_id:{self.race_id})のレース結果ページのデータが不足しているため記録を行いません')
+            self.logger.info(f'取得先URL:{url}')
+            self.race_flg = False
+            return
 
         # レース結果のテーブル
         table = tables[0]
@@ -583,6 +614,17 @@ class GetRaceData():
         else:
             self.logger.info(f'race_id:{self.race_id}\nが取得できなかったため出力を行いません')
 
+    def get_odds_list(self):
+        '''netkeibaの非公開APIからオッズを取得'''
+        url = f'https://race.netkeiba.com/api/api_get_jra_odds.html?race_id={self.race_id}&type=1'
+
+        r = requests.get(url)
+        odds_dict = json.loads(r.text)
+        odds = odds_dict['data']['odds']['1']
+        # 使いやすい形に成型してインスタンス変数につっこむ
+        return {str(int(key)) :[odds[key][0], odds[key][2]] for key in odds.keys()}
+
+
     def frame_no_culc(self, horse_num, horse_no):
         '''馬番と頭数から枠番を計算'''
         horse_no = int(horse_no)
@@ -605,7 +647,7 @@ class GetRaceData():
             else:
                 return self.frame_no_culc(16, horse_no)
 
-    def error_output(self, message, e, stacktrace):
+    def error_output(self, message, e, stacktrace, line_flg = True):
         '''エラー時のログ出力/LINE通知を行う
         Args:
             message(str) : エラーメッセージ
@@ -615,9 +657,10 @@ class GetRaceData():
         self.logger.error(message)
         self.logger.error(e)
         self.logger.error(stacktrace)
-        line.send(message)
-        line.send(e)
-        line.send(stacktrace)
+        if line_flg:
+            line.send(message)
+            line.send(e)
+            line.send(stacktrace)
 
 class RaceInfo():
     '''発走前のレースに関するデータのデータクラス'''
