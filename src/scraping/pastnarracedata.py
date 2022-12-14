@@ -21,8 +21,6 @@ class GetRaceData():
                            m : 月ごと(デフォルト)、y : 年ごと、a : 全ファイルまとめて
     '''
 
-    #DB_RESULT_URL = 'https://db.netkeiba.com/race/' + RACE_ID
-
     def __init__(self, race_id, output_type = 'm'):
         self.logger = lg.Logger(0)
         self.race_info = RaceInfo()

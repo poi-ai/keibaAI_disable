@@ -33,7 +33,7 @@ class GetRaceData():
         self.race_id = self.race_info.race_id = self.race_progress_info.race_id = race_id
         self.baba_id = self.race_info.baba_id = race_id[4:6]
         self.race_no = self.race_info.race_no = race_id[10:]
-        self.race_date = race_date # TODO 引数はレースID一本で動くようにするか
+        self.race_date = self.race_info.race_date = race_date
         self.output_type = output_type
         self.race_flg = True
 
@@ -121,6 +121,13 @@ class GetRaceData():
 
         # 馬柱からデータを取得
         soup = Soup.get_soup(url)
+
+        # 日付が設定されていない場合はサイト内から取得
+        if self.race_date == '':
+            date_link = soup.find('dd', class_ = 'Active')
+            m = re.search('kaisai_date=(\d+)', str(date_link))
+            if m != None:
+                self.race_date = self.race_info.race_date = m.groups()[0]
 
         # コース情報や状態を抽出
         race_data_01 = soup.find('div', class_ = 'RaceData01')
@@ -340,7 +347,7 @@ class GetRaceData():
                 horse_race_info.blinker = '1'
 
             # netkeiba独自の競走馬ID/馬名 TODO
-            m = re.search('db.netkeiba.com/horse/(\d+)/" target="_blank">(.+)</a>', str(horse_type))
+            m = re.search('db.netkeiba.com/horse/(\d+)" target="_blank">(.+)</a>', str(horse_type))
             if m != None:
                 horse_race_info.horse_id = horse_char_info.horse_id = m.groups()[0]
                 horse_char_info.horse_name = wordchange.rm(m.groups()[1])
@@ -388,10 +395,10 @@ class GetRaceData():
                 horse_race_info.running_type = '自在'
 
             # 馬体重
-            weight = re.search('(\d+)kg\((.+)\)', info.find('dt', class_ = 'Horse07').text)
+            weight = re.search('(\d+)kg\((.+)\)', info.find('div', class_ = 'Horse07').text)
 
             # 計不対応(前走計不は0と表示されるため対応不必要)
-            if info.find('dt', class_ = 'Horse07').text == '計不':
+            if info.find('div', class_ = 'Horse07').text == '計不':
                 horse_race_info.weight = '計不'
                 horse_race_info.weight_change = '計不'
 
@@ -438,7 +445,7 @@ class GetRaceData():
                 horse_char_info.hair_color = m.groups()[2]
 
             # 騎手名・netkeiba独自の騎手ID
-            jockey = re.search('db.netkeiba.com/jockey/result/recent/(\d+)/" target="_blank">(.+)</a>', str(info))
+            jockey = re.search('db.netkeiba.com/jockey/result/recent/(\d+)" target="_blank">(.+)</a>', str(info))
             if jockey != None:
                 horse_race_info.jockey_id = str(jockey.groups()[0])
                 horse_race_info.jockey = jockey.groups()[1]
@@ -492,6 +499,20 @@ class GetRaceData():
             horse_result.horse_no = row['馬番']
             horse_result.rank = row['着順']
             horse_result.goal_time = row['タイム']
+
+            # 騎手減量を取得
+            # MEMO レース結果後に公開されるページなので、リアルタイムの情報取得には使えない
+            # 現時点では暫定処理として使用
+            if '▲' in str(row['騎手']):
+                self.horse_race_info_dict[str(row['馬番'])].jockey_handi = '▲'
+            elif '△' in str(row['騎手']):
+                self.horse_race_info_dict[str(row['馬番'])].jockey_handi = '△'
+            elif '☆' in str(row['騎手']):
+                self.horse_race_info_dict[str(row['馬番'])].jockey_handi = '☆'
+            elif '★' in str(row['騎手']):
+                self.horse_race_info_dict[str(row['馬番'])].jockey_handi = '★'
+            elif '◇' in str(row['騎手']):
+                self.horse_race_info_dict[str(row['馬番'])].jockey_handi = '◇'
 
             # 着差、1着馬は2着との差をマイナスに
             if i == 0:
