@@ -510,16 +510,18 @@ class GetRaceData():
 
         # コーナー通過順抽出。pd.read_htmlでは','が除去されるため抽出不可
         # CSV出力時に区切り文字と混合しないため「|」を採用
-        rank_table = soup.find('table', class_ = 'RaceCommon_Table Corner_Num').text.split('\n')
-        for index in range(len(rank_table)):
-            if rank_table[index] == '1コーナー':
-                self.race_progress_info.corner1_rank = rank_table[index + 1].replace(',', '|')
-            elif rank_table[index] == '2コーナー':
-                self.race_progress_info.corner2_rank = rank_table[index + 1].replace(',', '|')
-            elif rank_table[index] == '3コーナー':
-                self.race_progress_info.corner3_rank = rank_table[index + 1].replace(',', '|')
-            elif rank_table[index] == '4コーナー':
-                self.race_progress_info.corner4_rank = rank_table[index + 1].replace(',', '|')
+        rank_table_html = soup.find('table', class_ = 'RaceCommon_Table Corner_Num')
+        if rank_table_html != None:
+            rank_table = rank_table_html.text.split('\n')
+            for index in range(len(rank_table)):
+                if rank_table[index] == '1コーナー':
+                    self.race_progress_info.corner1_rank = rank_table[index + 1].replace(',', '|')
+                elif rank_table[index] == '2コーナー':
+                    self.race_progress_info.corner2_rank = rank_table[index + 1].replace(',', '|')
+                elif rank_table[index] == '3コーナー':
+                    self.race_progress_info.corner3_rank = rank_table[index + 1].replace(',', '|')
+                elif rank_table[index] == '4コーナー':
+                    self.race_progress_info.corner4_rank = rank_table[index + 1].replace(',', '|')
 
         # ラップ抽出。非公表の競馬場もあり
         # CSV出力時に区切り文字と混合しないため「|」を採用
@@ -545,13 +547,13 @@ class GetRaceData():
         # 発走前レースデータを出力
         race_info_df = pd.DataFrame.from_dict(vars(self.race_info), orient='index').T
         race_info_df.columns = [column.replace('_RaceInfo__', '') for column in race_info_df.columns]
-        output.csv(race_info_df, f'race_info{filename_tail}')
+        output.csv(race_info_df, f'nar_race_info{filename_tail}')
 
         # 発走前馬データを出力
         if len(self.horse_race_info_dict) != 0:
             horse_race_info_df = pd.concat([pd.DataFrame.from_dict(vars(df), orient='index').T for df in self.horse_race_info_dict.values()])
             horse_race_info_df.columns = [column.replace('_HorseRaceInfo__', '') for column in horse_race_info_df.columns]
-            output.csv(horse_race_info_df, f'horse_race_info{filename_tail}')
+            output.csv(horse_race_info_df, f'nar_horse_race_info{filename_tail}')
         else:
             self.logger.info(f'race_id:{self.race_id}\nが取得できなかったため出力を行いません')
 
@@ -559,20 +561,20 @@ class GetRaceData():
         if len(self.horse_char_info_dict) != 0:
             horse_char_info_df = pd.concat([pd.DataFrame.from_dict(vars(df), orient='index').T for df in self.horse_char_info_dict.values()])
             horse_char_info_df.columns = [column.replace('_HorseCharInfo__', '') for column in horse_char_info_df.columns]
-            output.csv(horse_char_info_df, f'horse_char_info{filename_tail}')
+            output.csv(horse_char_info_df, f'nar_horse_char_info{filename_tail}')
         else:
             self.logger.info(f'race_id:{self.race_id}\nが取得できなかったため出力を行いません')
 
         # レース進行データを出力
         race_progress_info_df = pd.DataFrame.from_dict(vars(self.race_progress_info), orient='index').T
         race_progress_info_df.columns = [column.replace('_RaceProgressInfo__', '') for column in race_progress_info_df.columns]
-        output.csv(race_progress_info_df, f'race_progress_info{filename_tail}')
+        output.csv(race_progress_info_df, f'nar_race_progress_info{filename_tail}')
 
         # レース結果データを出力
         if len(self.horse_result_dict) != 0:
             horse_result_df = pd.concat([pd.DataFrame.from_dict(vars(df), orient='index').T for df in self.horse_result_dict.values()])
             horse_result_df.columns = [column.replace('_HorseResult__', '') for column in horse_result_df.columns]
-            output.csv(horse_result_df, f'horse_result{filename_tail}')
+            output.csv(horse_result_df, f'nar_horse_result{filename_tail}')
         else:
             self.logger.info(f'race_id:{self.race_id}\nが取得できなかったため出力を行いません')
 
@@ -632,8 +634,8 @@ class RaceInfo():
         self.__hold_no = '' # 開催回
         self.__hold_date = '' # 開催日
         self.__race_class = '' # クラス
-        self.__grade = '' # グレードo[ TODO 待戦未判明]
-        self.__require_age = '' # 出走条件(年齢)o
+        self.__grade = '' # グレード
+        self.__require_age = '' # 出走条件(年齢)
         self.__load_kind = '0' # 斤量条件(定量/馬齢/別定/ハンデ)[地方では取れないため0固定]
         self.__first_prize = '' # 1着賞金
         self.__second_prize = '' # 2着賞金
@@ -1016,5 +1018,5 @@ class HorseResult():
 
 # TODO 単一メソッド動作確認用、後で消す
 if __name__ == '__main__':
-    rg = GetRaceData('202242060310')
+    rg = GetRaceData('201854032004')
     rg.main()
