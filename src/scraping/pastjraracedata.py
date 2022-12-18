@@ -291,7 +291,7 @@ class GetRaceData():
             self.race_info.require_beginner_jockey = '1'
         '''
 
-        # 斤量条件[定量/馬齢/別定/ハンデ] TODO 詳細条件取れるか
+        # 斤量条件[定量/馬齢/別定/ハンデ]
         self.race_info.load_kind = race_data_list[8]
 
         # 登録頭数
@@ -346,11 +346,19 @@ class GetRaceData():
             if '<span class="Mark">B</span>' in str(horse_type):
                 horse_race_info.blinker = '1'
 
-            # netkeiba独自の競走馬ID/馬名 TODO
-            m = re.search('db.netkeiba.com/horse/(\d+)" target="_blank">(.+)</a>', str(horse_type))
+            # netkeiba独自の競走馬ID/馬名
+            m = re.search('db.netkeiba.com/horse/(\d+)" target="_blank">', str(horse_type))
             if m != None:
                 horse_race_info.horse_id = horse_char_info.horse_id = m.groups()[0]
-                horse_char_info.horse_name = wordchange.rm(m.groups()[1])
+
+            # 馬名
+            horse_name = wordchange.rm(horse_type.text)
+
+            # 末尾にブリンカーマークがついていたら除去
+            if horse_char_info.horse_name.endswith('B'):
+                horse_char_info.horse_name == horse_name[:len(horse_name) - 1]
+            else:
+                horse_char_info.horse_name == horse_name
 
             # 父名・母名・母父名
             horse_char_info.father = info.find('div', class_ = 'Horse01').text
@@ -404,14 +412,22 @@ class GetRaceData():
 
             if weight != None:
                 horse_race_info.weight = weight.groups()[0]
-                horse_race_info.weight_change = str(int(weight.groups()[1]))
+                if str(weight.groups()[1]) == '前計不':
+                    horse_race_info.weight_change = '前計不'
+                else:
+                    horse_race_info.weight_change = str(int(weight.groups()[1]))
+
+            # 除外・取消馬は999kg(0)と表記される場合があるのでそれに対応
+            if str(horse_race_info.weight) == '999' and str(horse_race_info.weight_change) == '0':
+                horse_race_info.weight = ''
+                horse_race_info.weight_change = ''
 
             # 単勝オッズ/人気
             if odds_list != []:
                 # 念のためキーエラー対策。LINEには送らずログにだけ出力
                 try:
                     # 除外・取消馬でない
-                    if odds_list[str(i + 1)][0] != '-3.0':
+                    if odds_list[str(i + 1)][0] != '-3.0' and odds_list[str(i + 1)][0] != '-2.0':
                         horse_race_info.win_odds = odds_list[str(i + 1)][0]
 
                     if odds_list[str(i + 1)][1] != '9999':
@@ -448,7 +464,13 @@ class GetRaceData():
             jockey = re.search('db.netkeiba.com/jockey/result/recent/(\d+)" target="_blank">(.+)</a>', str(info))
             if jockey != None:
                 horse_race_info.jockey_id = str(jockey.groups()[0])
-                horse_race_info.jockey = jockey.groups()[1]
+
+                # 騎手乗り代わりチェック
+                if '<font color="red">' in jockey.groups()[1]:
+                    horse_race_info.jockey = jockey.groups()[1].replace('<font color="red">', '').replace('</font>', '')
+                    horse_race_info.jockey_change = '1'
+                else:
+                    horse_race_info.jockey = jockey.groups()[1]
 
             # 斤量
             load = re.search('<span>(\d+\d.\d+)</span>', str(info))
@@ -564,7 +586,11 @@ class GetRaceData():
                 elif str(row['着順']) == '5':
                     horse_result.prize = str(self.race_info.fifth_prize)
 
-            horse_result.agari = row['後3F']
+            # 平地競走の場合は上がり3F、障害の場合は平均1Fを記録
+            if self.race_info.race_type == '平':
+                horse_result.agari = row['後3F']
+            elif self.race_info.race_type == '障':
+                horse_result.ave_1f = row['後3F']
 
             horse_result.horse_id = self.horse_race_info_dict[str(row['馬番'])].horse_id
 
@@ -572,16 +598,18 @@ class GetRaceData():
 
         # コーナー通過順抽出。pd.read_htmlでは','が除去されるため抽出不可
         # CSV出力時に区切り文字と混合しないため「|」を採用
-        rank_table = soup.find('table', class_ = 'RaceCommon_Table Corner_Num').text.split('\n')
-        for index in range(len(rank_table)):
-            if rank_table[index] == '1コーナー':
-                self.race_progress_info.corner1_rank = rank_table[index + 1].replace(',', '|')
-            elif rank_table[index] == '2コーナー':
-                self.race_progress_info.corner2_rank = rank_table[index + 1].replace(',', '|')
-            elif rank_table[index] == '3コーナー':
-                self.race_progress_info.corner3_rank = rank_table[index + 1].replace(',', '|')
-            elif rank_table[index] == '4コーナー':
-                self.race_progress_info.corner4_rank = rank_table[index + 1].replace(',', '|')
+        rank_table_html = soup.find('table', class_ = 'RaceCommon_Table Corner_Num')
+        if rank_table_html != None:
+            rank_table = rank_table_html.text.split('\n')
+            for index in range(len(rank_table)):
+                if rank_table[index] == '1コーナー':
+                    self.race_progress_info.corner1_rank = rank_table[index + 1].replace(',', '|')
+                elif rank_table[index] == '2コーナー':
+                    self.race_progress_info.corner2_rank = rank_table[index + 1].replace(',', '|')
+                elif rank_table[index] == '3コーナー':
+                    self.race_progress_info.corner3_rank = rank_table[index + 1].replace(',', '|')
+                elif rank_table[index] == '4コーナー':
+                    self.race_progress_info.corner4_rank = rank_table[index + 1].replace(',', '|')
 
         # ラップ抽出。非公表の競馬場もあり
         # CSV出力時に区切り文字と混合しないため「|」を採用
@@ -686,35 +714,35 @@ class GetRaceData():
 class RaceInfo():
     '''発走前のレースに関するデータのデータクラス'''
     def __init__(self):
-        self.__race_id = '' # レースID(netkeiba準拠、PK)o
-        self.__race_date = '' # レース開催日 TODO
-        self.__race_no = '' # レース番号o
-        self.__baba_id = '' # 競馬場コードo
-        self.__race_name = '' # レース名o
-        self.__race_type = '' # レース形態(平地/障害)o
-        self.__baba = '' # 馬場(芝/ダート)o
-        self.__weather = '' # 天候o
-        self.__glass_condition = '' # 馬場状態(芝)o
-        self.__dirt_condition = '' # 馬場状態(ダート)o
-        self.__distance = '' # 距離o
-        self.__around = '' # 回り(右/左)o
-        self.__in_out = '' # 使用コース(内回り/外回り)o
-        self.__race_time = '' # 発走時刻o
-        self.__hold_no = '' # 開催回o
-        self.__hold_date = '' # 開催日o
-        self.__race_class = '' # クラスo
-        self.__grade = '' # グレード TODO
-        self.__require_age = '' # 出走条件(年齢)o
-        self.__require_gender = '' # 出走条件(牝馬限定戦)o
-        self.__require_country = '' # 出走条件(国際/混合)o
-        self.__require_local = '' # 出走条件(特別指定/指定)o
-        self.__load_kind = '' # 斤量条件(定量/馬齢/別定/ハンデ)o
-        self.__first_prize = '' # 1着賞金o
-        self.__second_prize = '' # 2着賞金o
-        self.__third_prize = '' # 3着賞金o
-        self.__fourth_prize = '' # 4着賞金o
-        self.__fifth_prize = '' # 5着賞金o
-        self.__regist_num = '' # 登録頭数o
+        self.__race_id = '' # レースID(netkeiba準拠、PK)
+        self.__race_date = '' # レース開催日
+        self.__race_no = '' # レース番号
+        self.__baba_id = '' # 競馬場コード
+        self.__race_name = '' # レース名
+        self.__race_type = '' # レース形態(平地/障害)
+        self.__baba = '' # 馬場(芝/ダート)
+        self.__weather = '' # 天候
+        self.__glass_condition = '' # 馬場状態(芝)
+        self.__dirt_condition = '' # 馬場状態(ダート)
+        self.__distance = '' # 距離
+        self.__around = '' # 回り(右/左)
+        self.__in_out = '' # 使用コース(内回り/外回り)
+        self.__race_time = '' # 発走時刻
+        self.__hold_no = '' # 開催回
+        self.__hold_date = '' # 開催日
+        self.__race_class = '' # クラス
+        self.__grade = '' # グレード
+        self.__require_age = '' # 出走条件(年齢)
+        self.__require_gender = '' # 出走条件(牝馬限定戦)
+        self.__require_country = '' # 出走条件(国際/混合)
+        self.__require_local = '' # 出走条件(特別指定/指定)
+        self.__load_kind = '' # 斤量条件(定量/馬齢/別定/ハンデ)
+        self.__first_prize = '' # 1着賞金
+        self.__second_prize = '' # 2着賞金
+        self.__third_prize = '' # 3着賞金
+        self.__fourth_prize = '' # 4着賞金
+        self.__fifth_prize = '' # 5着賞金
+        self.__regist_num = '' # 登録頭数
 
     # getter
     @property
@@ -839,13 +867,13 @@ class RaceInfo():
 class RaceProgressInfo():
     '''レース全体のレース結果を保持するデータクラス'''
     def __init__(self):
-        self.__race_id = '' # レースID(netkeiba準拠、PK) TODO
-        self.__corner1_rank = '' # 第1コーナー通過順(馬番) TODO
-        self.__corner2_rank = '' # 第2コーナー通過順(馬番) TODO
-        self.__corner3_rank = '' # 第3コーナー通過順(馬番) TODO
-        self.__corner4_rank = '' # 第4コーナー通過順(馬番) TODO
-        self.__lap_distance = '' # 先頭馬のラップ測定距離(m) TODO
-        self.__lap_time = '' # 先頭馬のラップタイム(秒) TODO
+        self.__race_id = '' # レースID(netkeiba準拠、PK)
+        self.__corner1_rank = '' # 第1コーナー通過順(馬番)
+        self.__corner2_rank = '' # 第2コーナー通過順(馬番)
+        self.__corner3_rank = '' # 第3コーナー通過順(馬番)
+        self.__corner4_rank = '' # 第4コーナー通過順(馬番)
+        self.__lap_distance = '' # 先頭馬のラップ測定距離(m)
+        self.__lap_time = '' # 先頭馬のラップタイム(秒)
 
     # getter
     @property
@@ -891,6 +919,7 @@ class HorseRaceInfo():
         self.__load = '' # 斤量
         self.__jockey_id = '' # 騎手ID
         self.__jockey = '' # 騎手名
+        self.__jockey_change = '0' # 騎手乗り替わりフラグ
         self.__jockey_handi = '' # 騎手減量
         self.__win_odds = '' # 単勝オッズ
         self.__popular = '' # 人気
@@ -925,6 +954,8 @@ class HorseRaceInfo():
     def jockey_id(self): return self.__jockey_id
     @property
     def jockey(self): return self.__jockey
+    @property
+    def jockey_change(self): return self.__jockey_change
     @property
     def jockey_handi(self): return self.__jockey_handi
     @property
@@ -973,6 +1004,8 @@ class HorseRaceInfo():
     def jockey_id(self, jockey_id): self.__jockey_id = jockey_id
     @jockey.setter
     def jockey(self, jockey): self.__jockey = jockey
+    @jockey_change.setter
+    def jockey_change(self, jockey_change): self.__jockey_change = jockey_change
     @jockey_handi.setter
     def jockey_handi(self, jockey_handi): self.__jockey_handi = jockey_handi
     @win_odds.setter
@@ -1048,14 +1081,15 @@ class HorseCharInfo():
 class HorseResult():
     '''各馬のレース結果のデータクラス'''
     def __init__(self):
-        self.__horse_id = '' # 競走馬ID(netkeiba準拠、複合PK) TODO
-        self.__race_id = '' # レースID(netkeiba準拠、PK) TODO
-        self.__horse_no = '' # 馬番(複合PK)o
-        self.__rank = '' # 着順o
-        self.__goal_time = '' # タイムo
-        self.__diff = '' # 着差o
-        self.__agari = '' # 上り3Fo
-        self.__prize = '0' # 賞金o
+        self.__horse_id = '' # 競走馬ID(netkeiba準拠、複合PK)
+        self.__race_id = '' # レースID(netkeiba準拠、PK)
+        self.__horse_no = '' # 馬番(複合PK)
+        self.__rank = '' # 着順
+        self.__goal_time = '' # タイム
+        self.__diff = '' # 着差
+        self.__agari = '' # 上り3F(平のみ)
+        self.__ave_1f = '' # 平均1F(障のみ)
+        self.__prize = '0' # 賞金
 
     # getter
     @property
@@ -1072,6 +1106,8 @@ class HorseResult():
     def diff(self): return self.__diff
     @property
     def agari(self): return self.__agari
+    @property
+    def ave_1f(self): return self.__ave_1f
     @property
     def prize(self): return self.__prize
 
@@ -1090,10 +1126,12 @@ class HorseResult():
     def diff(self, diff): self.__diff = diff
     @agari.setter
     def agari(self, agari): self.__agari = agari
+    @ave_1f.setter
+    def ave_1f(self, ave_1f): self.__ave_1f = ave_1f
     @prize.setter
     def prize(self, prize): self.__prize = prize
 
 # TODO 単一メソッド動作確認用、後で消す
 if __name__ == '__main__':
-    rg = GetRaceData('202006010901', '20200126')
+    rg = GetRaceData('202204040508')
     rg.main()

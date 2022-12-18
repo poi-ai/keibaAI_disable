@@ -192,7 +192,9 @@ if __name__ == '__main__':
 
     # 初期処理
     try:
-        if len(sys.argv) >= 3:
+        if len(sys.argv) >= 4:
+            rd = RaceData(sys.argv[1], sys.argv[2], sys.argv[3])
+        elif len(sys.argv) == 3:
             rd = RaceData(sys.argv[1], sys.argv[2])
         elif len(sys.argv) == 2:
             rd = RaceData(sys.argv[1])
