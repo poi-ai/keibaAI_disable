@@ -269,7 +269,7 @@ class GetRaceData():
             elif 'Icon_KakuGai' in str(horse_type):
                 horse_race_info.country = 'カク外'
 
-            # ブリンカー有無
+            # ブリンカー有無 TODO 要修正
             if '<span class="Mark">B</span>' in str(horse_type):
                 horse_race_info.blinker = '1'
 
@@ -394,7 +394,7 @@ class GetRaceData():
             # 馬主と生産牧場を取得
             horse_info = wordchange.rm(str(names[horse_row].find('div', class_ = 'append'))).split('<br/>')
             self.horse_race_info_dict[str(horse_row + 1)].owner = horse_info[1]
-            self.horse_char_info_dict[str(horse_row + 1)].farm = horse_info[2].replace('生産</div>', '')
+            self.horse_char_info_dict[str(horse_row + 1)].farm = horse_info[2].replace('生産</div>', '').replace('生</div>', '').replace('</div>', '')
 
             # 減量騎手のマークを取得
             jockey_info = re.findall('JOCKEYID/\d+" target="_blank">.+</a>', str(profiles[horse_row]))
