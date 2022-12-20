@@ -16,7 +16,9 @@ class Nar():
 
     Instance Parameter:
        baba_url(list<str>) : 各競馬場のレース情報が記載されたURLのリスト
+       baba_error(list<str>) : 競馬場情報の取得に失敗したURLのリスト
        race_info(list<RaceInfo>) : 各レース情報を持つリスト
+       race_error(list<RaceInfo>) : レース情報の取得に失敗したレースのリスト
        next_get_time(datetime) : 次回オッズ取得時刻
        write_data(DataFrame) : 書き込み用データ
     '''
@@ -29,7 +31,9 @@ class Nar():
         line.send('地方競馬オッズ記録システム起動')
         logger.info('初期処理開始')
         self.__baba_url = []
+        self.__baba_error = []
         self.__race_info = []
+        self.__race_error = []
         self.__next_get_time = 0
         self.__write_data = pd.DataFrame(columns = ['レースID','馬番', '単勝オッズ', '複勝下限オッズ', '複勝上限オッズ', '記録時刻', '発走まで', 'JRAフラグ'])
         self.get_url()
@@ -41,12 +45,20 @@ class Nar():
         return self.__baba_url
 
     @property
+    def baba_error(self):
+        return self.__baba_error
+
+    @property
     def next_get_time(self):
         return self.__next_get_time
 
     @property
     def race_info(self):
         return self.__race_info
+
+    @property
+    def race_error(self):
+        return self.__race_error
 
     @property
     def write_data(self):
@@ -59,6 +71,14 @@ class Nar():
     @write_data.setter
     def write_data(self, write_data):
         self.__write_data = write_data
+
+    @baba_error.setter
+    def baba_error(self, baba_error):
+        self.__baba_error = baba_error
+
+    @race_error.setter
+    def race_error(self, race_error):
+        self.__race_error = race_error
 
     def get_url(self):
         '''稼働日の各競馬場のレースリストURLを取得する'''
@@ -94,15 +114,19 @@ class Nar():
             if result == -1:
                 logger.error(f'{babacodechange.keibago(race_url[-2:].replace("=", ""))}競馬場のレース情報取得に失敗しました')
 
-                # 初期処理で失敗した場合のみエラーとして処理
+                # 初期処理で失敗した場合はエラーとして処理
                 if init_flg:
                     raise
                 else:
+                    self.baba_error.append(race_url)
                     logger.info(f'{babacodechange.keibago(race_url[-2:].replace("=", ""))}競馬場の発走時刻更新を行いません')
                     time.sleep(3)
                     continue
 
             race_list = result[0]
+
+            # 取得成功したらエラーリストから除去
+            self.baba_error.remove(race_url)
 
             logger.info(f'{babacodechange.keibago(race_url[-2:].replace("=", ""))}競馬場のレーステーブル取得')
 
@@ -142,6 +166,12 @@ class Nar():
                         time.sleep(3)
                         continue
             time.sleep(2)
+
+        # 2度失敗したら取得対象から除く TODO 最初の1個しか消えない、2回でよいか
+        for baba, error_count in {baba_key: self.baba_error.count(baba_key) for baba_key in self.baba_error}.items():
+            if error_count >= 2:
+                self.baba_error.remove(baba)
+                self.baba_url.remove(baba)
 
     def time_check(self, called = False):
         '''次のオッズ記録時間までの秒数を計算する
