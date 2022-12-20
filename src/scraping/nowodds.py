@@ -73,7 +73,7 @@ class NowOdds():
         try:
             jra = nowjraodds.Jra()
         except Exception as e:
-            self.error_output('中央_初期処理でエラー', e, traceback.format_exc())
+            self.error_output('中央_初期処理でエラー', e, traceback.format_exc(), False)
             self.jra_flg = False
 
         if not jra.kaisai:
@@ -84,7 +84,7 @@ class NowOdds():
         try:
             nar = nownarodds.Nar()
         except Exception as e:
-            self.error_output('地方_初期処理でエラー', e, traceback.format_exc())
+            self.error_output('地方_初期処理でエラー', e, traceback.format_exc(), False)
             self.nar_flg = False
 
         return jra, nar
@@ -108,7 +108,7 @@ class NowOdds():
             try:
                 self.jra.get_race_info()
             except Exception as e:
-                self.error_output('中央_発走時刻更新処理でエラー', e, traceback.format_exc())
+                self.error_output('中央_発走時刻更新処理でエラー', e, traceback.format_exc(), False)
                 self.jra_flg = False
 
         # 地方発走時刻更新
@@ -116,7 +116,7 @@ class NowOdds():
             try:
                 self.nar.get_race_info()
             except Exception as e:
-                self.error_output('地方_発走時刻更新処理でエラー', e, traceback.format_exc())
+                self.error_output('地方_発走時刻更新処理でエラー', e, traceback.format_exc(), False)
                 self.nar_flg = False
 
     def time_check(self):
@@ -130,7 +130,7 @@ class NowOdds():
                 jra_wait_time =  self.jra.time_check(True)
                 logger.info(f'中央：次の記録時間まで{jra_wait_time}秒')
             except Exception as e:
-                self.error_output('中央_待機時間チェック処理でエラー', e, traceback.format_exc())
+                self.error_output('中央_待機時間チェック処理でエラー', e, traceback.format_exc(), False)
                 self.jra_flg = False
         else:
             logger.info(f'中央の取得対象レースはありません')
@@ -142,7 +142,7 @@ class NowOdds():
                 nar_wait_time = self.nar.time_check(True)
                 logger.info(f'地方：次の記録時間まで{nar_wait_time}秒')
             except Exception as e:
-                self.error_output('地方_時刻までの待機時間チェック処理でエラー', e, traceback.format_exc())
+                self.error_output('地方_時刻までの待機時間チェック処理でエラー', e, traceback.format_exc(), False)
                 self.nar_flg = False
         else:
             logger.info(f'地方の取得対象レースはありません')
@@ -219,7 +219,7 @@ class NowOdds():
                 if len(self.nar.write_data) != 0:
                     self.nar.record_odds()
 
-    def error_output(self, message, e, stacktrace):
+    def error_output(self, message, e, stacktrace, line_flg = True):
         '''エラー時のログ出力/LINE通知を行う
 
         Args:
@@ -230,9 +230,10 @@ class NowOdds():
         logger.error(message)
         logger.error(e)
         logger.error(stacktrace)
-        line.send(message)
-        line.send(e)
-        line.send(stacktrace)
+        if line_flg:
+            line.send(message)
+            line.send(e)
+            line.send(stacktrace)
 
 if __name__ == '__main__':
     # ログ用インスタンス作成

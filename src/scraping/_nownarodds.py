@@ -118,15 +118,13 @@ class Nar():
                 if init_flg:
                     raise
                 else:
+                    # 取得エラーリストに追加
                     self.baba_error.append(race_url)
                     logger.info(f'{babacodechange.keibago(race_url[-2:].replace("=", ""))}競馬場の発走時刻更新を行いません')
                     time.sleep(3)
                     continue
 
             race_list = result[0]
-
-            # 取得成功したらエラーリストから除去
-            self.baba_error.remove(race_url)
 
             logger.info(f'{babacodechange.keibago(race_url[-2:].replace("=", ""))}競馬場のレーステーブル取得')
 
@@ -144,7 +142,7 @@ class Nar():
                         # クラス化して保存(競馬場コード,レース番号,発走時刻)
                         self.race_info.append(RaceInfo(race_url[-2:].replace('=', ''), race[0].replace('R', ''), race_time))
                     except Exception as e:
-                        self.error_output(f'{babacodechange.keibago(race_url[-2:].replace("=", ""))}競馬場の発走時刻追加の初期処理に失敗しました', e, traceback.format_exc(), False)
+                        self.error_output(f'{babacodechange.keibago(race_url[-2:].replace("=", ""))}競馬場の発走時刻追加の初期処理に失敗しました', e, traceback.format_exc())
                         raise
                 else:
                     try:
@@ -161,17 +159,24 @@ class Nar():
                                     logger.info(f'発走時間変更 {babacodechange.keibago(save_race.baba_code)}{save_race.race_no}R {jst.clock(save_race.race_time)}→{jst.clock(race_time)}')
                                     save_race.race_time = race_time
                     except Exception as e:
+                        # TODO 本当はレース単位で見に行く必要があるが、とりあえず競馬場単位での暫定処理
+                        self.baba_error.append(race_url)
                         self.error_output(f'{babacodechange.keibago(race_url[-2:].replace("=", ""))}競馬場の発走時刻追加処理に失敗しました', e, traceback.format_exc(), False)
                         logger.info(f'{babacodechange.keibago(race_url[-2:].replace("=", ""))}競馬場のレーステーブルの発走時刻更新を行いません')
                         time.sleep(3)
                         continue
+
+            # 取得成功したらエラーリストから除去
+            self.baba_error = [x for x in self.baba_error if x != race_url]
+
             time.sleep(2)
 
-        # 2度失敗したら取得対象から除く TODO 最初の1個しか消えない、2回でよいか
+        # 発走時刻取得処理に3度連続取得失敗したら取得対象から除く
         for baba, error_count in {baba_key: self.baba_error.count(baba_key) for baba_key in self.baba_error}.items():
-            if error_count >= 2:
-                self.baba_error.remove(baba)
+            if error_count >= 3:
                 self.baba_url.remove(baba)
+                
+        # 
 
     def time_check(self, called = False):
         '''次のオッズ記録時間までの秒数を計算する
@@ -289,7 +294,7 @@ class Nar():
         try:
             output.csv(self.write_data, f'nar_resultodds_{jst.year()}{jst.zmonth()}')
         except Exception as e:
-            self.error_output('オッズ出力処理でエラー', e, traceback.format_exc(), False)
+            self.error_output('オッズ出力処理でエラー', e, traceback.format_exc())
 
         # TODO Google Spread Sheetに出力
         # writesheet.write_spread_sheet(self.write_data, jst.month().zfill(2))
@@ -334,14 +339,27 @@ class Nar():
                 try:
                     self.get_odds(race)
                 except Exception as e:
-                    self.error_output(f'{babacodechange.keibago(race.baba_code)}{race.race_no.zfill(2)}Rの暫定オッズ取得処理でエラー', e, traceback.format_exc(), False)
+                    # 取得失敗リストに追加
+                    self.race_error.append(race)
+                    self.error_output(f'{babacodechange.keibago(race.baba_code)}{race.race_no.zfill(2)}Rの暫定オッズ取得処理でエラー', e, traceback.format_exc())
                     race.record_flg = '0'
+                    continue
                 race.record_flg = '3'
                 get_count += 1
 
             # アクセス過多防止のため、5レース取得ごとに1秒待機(バグリカバリ)
             if get_count % 5 == 0 and get_count != 0:
                 time.sleep(1)
+
+            # 取得成功したらエラーリストから除去
+            self.race_error = [x for x in self.race_error if x != race]
+
+            time.sleep(2)
+
+        # 発走時刻取得処理に3度連続取得失敗したら取得対象から除く
+        for baba, error_count in {race_key: self.race_error.count(race_key) for race_key in self.race_error}.items():
+            if error_count >= 3:
+                self.race_url.remove(baba)
 
     def get_select_confirm(self):
         '''最終オッズ取得対象レースの抽出'''
@@ -351,7 +369,7 @@ class Nar():
                 try:
                     self.get_odds(race)
                 except Exception as e:
-                    self.error_output(f'{babacodechange.keibago(race.baba_code)}{race.race_no.zfill(2)}Rの確定オッズ取得処理でエラー', e, traceback.format_exc(), False)
+                    self.error_output(f'{babacodechange.keibago(race.baba_code)}{race.race_no.zfill(2)}Rの確定オッズ取得処理でエラー', e, traceback.format_exc())
                     race.record_flg = '-1'
                     continue
                 race.record_flg = '4'
@@ -459,7 +477,7 @@ if __name__ == '__main__':
             try:
                 nar.get_race_info()
             except Exception as e:
-                nar.error_output('発走時刻更新処理でエラー', e, traceback.format_exc(), False)
+                nar.error_output('発走時刻更新処理でエラー', e, traceback.format_exc())
                 exit()
 
             # 発走までの時間チェック待機
@@ -467,7 +485,7 @@ if __name__ == '__main__':
                 if nar.time_check():
                     break
             except Exception as e:
-                nar.error_output('発走時刻までの待機処理でエラー', e, traceback.format_exc(), False)
+                nar.error_output('発走時刻までの待機処理でエラー', e, traceback.format_exc())
                 exit()
 
         # 暫定オッズ取得処理

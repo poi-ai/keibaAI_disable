@@ -269,10 +269,6 @@ class GetRaceData():
             elif 'Icon_KakuGai' in str(horse_type):
                 horse_race_info.country = 'カク外'
 
-            # ブリンカー有無 TODO 地方からブリンカーの有無は取得できないので後で削除する
-            if '<span class="Mark">B</span>' in str(horse_type):
-                horse_race_info.blinker = '1'
-
             # netkeiba独自の馬ID
             m = re.search('db.netkeiba.com/horse/(\d+)/"', str(horse_type))
             if m != None:
@@ -570,13 +566,13 @@ class GetRaceData():
         # 発走前レースデータを出力
         race_info_df = pd.DataFrame.from_dict(vars(self.race_info), orient='index').T
         race_info_df.columns = [column.replace('_RaceInfo__', '') for column in race_info_df.columns]
-        output.csv(race_info_df, f'race_info{filename_tail}')
+        output.csv(race_info_df, f'nar_race_info{filename_tail}')
 
         # 発走前馬データを出力
         if len(self.horse_race_info_dict) != 0:
             horse_race_info_df = pd.concat([pd.DataFrame.from_dict(vars(df), orient='index').T for df in self.horse_race_info_dict.values()])
             horse_race_info_df.columns = [column.replace('_HorseRaceInfo__', '') for column in horse_race_info_df.columns]
-            output.csv(horse_race_info_df, f'horse_race_info{filename_tail}')
+            output.csv(horse_race_info_df, f'nar_horse_race_info{filename_tail}')
         else:
             self.logger.info(f'race_id:{self.race_id}\nが取得できなかったため出力を行いません')
 
@@ -584,20 +580,20 @@ class GetRaceData():
         if len(self.horse_char_info_dict) != 0:
             horse_char_info_df = pd.concat([pd.DataFrame.from_dict(vars(df), orient='index').T for df in self.horse_char_info_dict.values()])
             horse_char_info_df.columns = [column.replace('_HorseCharInfo__', '') for column in horse_char_info_df.columns]
-            output.csv(horse_char_info_df, f'horse_char_info{filename_tail}')
+            output.csv(horse_char_info_df, f'nar_horse_char_info{filename_tail}')
         else:
             self.logger.info(f'race_id:{self.race_id}\nが取得できなかったため出力を行いません')
 
         # レース進行データを出力
         race_progress_info_df = pd.DataFrame.from_dict(vars(self.race_progress_info), orient='index').T
         race_progress_info_df.columns = [column.replace('_RaceProgressInfo__', '') for column in race_progress_info_df.columns]
-        output.csv(race_progress_info_df, f'race_progress_info{filename_tail}')
+        output.csv(race_progress_info_df, f'nar_race_progress_info{filename_tail}')
 
         # レース結果データを出力
         if len(self.horse_result_dict) != 0:
             horse_result_df = pd.concat([pd.DataFrame.from_dict(vars(df), orient='index').T for df in self.horse_result_dict.values()])
             horse_result_df.columns = [column.replace('_HorseResult__', '') for column in horse_result_df.columns]
-            output.csv(horse_result_df, f'horse_result{filename_tail}')
+            output.csv(horse_result_df, f'nar_horse_result{filename_tail}')
         else:
             self.logger.info(f'race_id:{self.race_id}\nが取得できなかったため出力を行いません')
 
@@ -848,7 +844,7 @@ class HorseRaceInfo():
         self.__running_type = '' # 脚質(←netkeibaの主観データ？)
         self.__country = '' # 所属(外国馬か)
         self.__belong = '' # 所属(地方馬か)
-        self.__blinker = '0' # ブリンカー(有/無)
+        self.__blinker = '0' # ブリンカー(有/無)[地方は取得できないので固定]
 
     # getter
     @property
