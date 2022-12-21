@@ -355,10 +355,11 @@ class GetRaceData():
             horse_name = wordchange.rm(horse_type.text)
 
             # 末尾にブリンカーマークがついていたら除去
-            if horse_char_info.horse_name.endswith('B'):
-                horse_char_info.horse_name == horse_name[:len(horse_name) - 1]
+            if horse_name.endswith('B'):
+                print('a)')
+                horse_char_info.horse_name = horse_name[:len(horse_name) - 1]
             else:
-                horse_char_info.horse_name == horse_name
+                horse_char_info.horse_name = horse_name
 
             # 父名・母名・母父名
             horse_char_info.father = info.find('div', class_ = 'Horse01').text
