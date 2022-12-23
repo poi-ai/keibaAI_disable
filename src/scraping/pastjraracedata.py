@@ -356,7 +356,6 @@ class GetRaceData():
 
             # 末尾にブリンカーマークがついていたら除去
             if horse_name.endswith('B'):
-                print('a)')
                 horse_char_info.horse_name = horse_name[:len(horse_name) - 1]
             else:
                 horse_char_info.horse_name = horse_name

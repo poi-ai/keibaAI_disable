@@ -4,6 +4,7 @@ import pastjraracedata
 import sys
 import time
 import traceback
+import re
 from common import logger, jst, soup as Soup, line, validate
 from tqdm import tqdm
 
@@ -119,7 +120,6 @@ class RaceData():
             else:
                 target_month = str(int(target_month) - 1).zfill(2)
 
-        # 一元化して返す
         return list(itertools.chain.from_iterable(date_list))
 
     def get_month_hold_date(self, years, month):
@@ -140,9 +140,16 @@ class RaceData():
         for link in links:
             date_url = link.get('href')
             # カレンダー内にあるリンク(=レースがある日)だけ取得
-            if 'kaisai_date' in date_url:
-                hold_list.append(date_url[len(date_url) - 8:])
-        return hold_list
+            # 2007年と2008年以降でリンク先が異なるので取得ロジック修正
+            if int(years) == 2007:
+                rematch = re.search('race/sum/(\d+)/(\d+)', str(link))
+                if rematch != None:
+                    hold_list.append(rematch.groups()[1])
+            elif int(years) > 2007:
+                if 'kaisai_date' in date_url:
+                    hold_list.append(date_url[len(date_url) - 8:])
+
+        return list(set(hold_list))
 
     def get_race_id(self, hold_date):
         '''対象年月日のレース番号を取得
