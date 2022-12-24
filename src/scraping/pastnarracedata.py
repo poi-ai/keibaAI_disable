@@ -21,7 +21,7 @@ class GetRaceData():
                            m : 月ごと(デフォルト)、y : 年ごと、a : 全ファイルまとめて
     '''
 
-    def __init__(self, race_id, output_type = 'm'):
+    def __init__(self, race_id, output_type = 'a'):
         self.logger = lg.Logger(0)
         self.race_info = RaceInfo()
         self.horse_race_info_dict = {}
