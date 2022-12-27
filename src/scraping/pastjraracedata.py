@@ -89,9 +89,10 @@ class GetRaceData():
     def main(self):
         # 馬柱からデータ取得
         try:
+            url = f'https://race.netkeiba.com/race/shutuba_past.html?race_id={self.race_id}'
             self.get_umabashira()
         except Exception as e:
-            self.error_output(f'{babacodechange.netkeiba(self.baba_id)}{self.race_no}R(race_id:{self.race_id})の馬柱取得処理でエラー', e, traceback.format_exc())
+            self.error_output(f'{babacodechange.netkeiba(self.baba_id)}{self.race_no}R(race_id:{self.race_id})の馬柱取得処理でエラー\n{url}', e, traceback.format_exc())
             return
 
         # レース中止フラグチェック
@@ -100,9 +101,10 @@ class GetRaceData():
 
         # レース結果からデータ取得
         try:
+            url = f'https://race.netkeiba.com/race/result.html?race_id={self.race_id}'
             self.get_result()
         except Exception as e:
-            self.error_output(f'{babacodechange.netkeiba(self.baba_id)}{self.race_no}R(race_id:{self.race_id})のレース結果取得処理でエラー', e, traceback.format_exc())
+            self.error_output(f'{babacodechange.netkeiba(self.baba_id)}{self.race_no}R(race_id:{self.race_id})のレース結果取得処理でエラー\n{url}', e, traceback.format_exc())
             return
 
         # レース中止フラグチェック
@@ -312,6 +314,7 @@ class GetRaceData():
 
         # 非公開APIからオッズ一覧を取得する
         try:
+            url = f'https://race.netkeiba.com/api/api_get_jra_odds.html?race_id={self.race_id}&type=1'
             odds_list = self.get_odds_list()
         except Exception as e:
             self.error_output(f'{babacodechange.netkeiba(self.baba_id)}{self.race_no}R(race_id:{self.race_id})のオッズ取得APIでエラー\n{url}', e, traceback.format_exc())
