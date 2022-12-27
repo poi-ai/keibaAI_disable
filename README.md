@@ -31,8 +31,9 @@
 <a id="anchor2"></a>
 ## 2. 開発環境
 
-#### 使用言語
-Python => 3.0
+#### 使用バージョン
+Python >= 3.10
+pip >= 22.3.1
 
 #### 使用ライブラリ
 `requirements.txt`に記載
@@ -48,13 +49,24 @@ Python => 3.0
 $ git clone https://github.com/poi-ai/keibaAI.git
 ```
 
+### pipのアップデート
+```
+$ python -m pip install --upgrade pip
+```
+
 #### 外部ライブラリのインストール
 ```
 $ pip install -r requirements.txt
 ```
 
 #### 設定ファイル
-coming soon...
+準備中です。。。
+
+~~src/setting.pyを設定後に、~~
+
+~~$ python main.py~~
+
+~~を実行~~
 
 <!--
 
