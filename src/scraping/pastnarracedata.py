@@ -406,6 +406,10 @@ class GetRaceData():
         soup = Soup.get_soup(url)
         table = soup.find('div', class_ = 'raceCardField')
 
+        if table == None:
+            self.logger.info(f'{babacodechange.netkeiba(self.baba_id)}{self.race_no}R(race_id:{self.race_id})の楽天競馬のレースページが見つかりません')
+            return
+
         names = table.find_all('td', class_ = 'name')
         profiles = table.find_all('td', class_ = 'profile')
 
@@ -1037,5 +1041,7 @@ class HorseResult():
 
 # TODO 単一メソッド動作確認用、後で消す
 if __name__ == '__main__':
-    rg = GetRaceData('202265121201')
-    rg.main()
+    miss = ['201854032004','201842031910','201842031911','201842031912','201735052207']
+    for i in miss:
+        rg = GetRaceData(i)
+        rg.main()

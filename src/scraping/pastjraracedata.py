@@ -312,15 +312,6 @@ class GetRaceData():
         self.race_info.fourth_prize = prize.groups()[3]
         self.race_info.fifth_prize = prize.groups()[4]
 
-        # 非公開APIからオッズ一覧を取得する
-        try:
-            url = f'https://race.netkeiba.com/api/api_get_jra_odds.html?race_id={self.race_id}&type=1'
-            odds_list = self.get_odds_list()
-        except Exception as e:
-            self.error_output(f'{babacodechange.netkeiba(self.baba_id)}{self.race_no}R(race_id:{self.race_id})のオッズ取得APIでエラー\n{url}', e, traceback.format_exc())
-            # APIだけおかしい場合があるためreturnにはしない
-            odds_list = []
-
         # 各馬の情報取得
         fc = soup.select('div[class="fc"]')
         for i, info in enumerate(fc):
@@ -425,19 +416,6 @@ class GetRaceData():
                 horse_race_info.weight = ''
                 horse_race_info.weight_change = ''
 
-            # 単勝オッズ/人気
-            if odds_list != []:
-                # 念のためキーエラー対策。LINEには送らずログにだけ出力
-                try:
-                    # 除外・取消馬でない
-                    if odds_list[str(i + 1)][0] != '-3.0' and odds_list[str(i + 1)][0] != '-2.0':
-                        horse_race_info.win_odds = odds_list[str(i + 1)][0]
-
-                    if odds_list[str(i + 1)][1] != '9999':
-                        horse_race_info.popular = odds_list[str(i + 1)][1]
-                except Exception as e:
-                    self.error_output(f'{babacodechange.netkeiba(self.baba_id)}{self.race_no}R(race_id:{self.race_id})のオッズ追加処理でエラー\n{url}', e, traceback.format_exc(), False)
-
             # 馬番・枠番
             horse_race_info.horse_no = str(i + 1)
             horse_race_info.frame_no = self.frame_no_culc(self.race_info.regist_num, int(i + 1))
@@ -538,6 +516,12 @@ class GetRaceData():
                 self.horse_race_info_dict[str(row['馬番'])].jockey_handi = '★'
             elif '◇' in str(row['騎手']):
                 self.horse_race_info_dict[str(row['馬番'])].jockey_handi = '◇'
+
+            # 単勝オッズ/人気を取得
+            # MEMO レース結果後に公開されるページなので、リアルタイムの情報取得には使えない
+            # 現時点では暫定処理として使用
+            self.horse_race_info_dict[str(row['馬番'])].win_odds = str(row['単勝オッズ'])
+            self.horse_race_info_dict[str(row['馬番'])].popular = str(row['人気'])
 
             # 着差、1着馬は2着との差をマイナスに
             if i == 0:
@@ -665,17 +649,6 @@ class GetRaceData():
             output.csv(horse_result_df, f'jra_horse_result{filename_tail}')
         else:
             self.logger.info(f'race_id:{self.race_id}\nが取得できなかったため出力を行いません')
-
-    def get_odds_list(self):
-        '''netkeibaの非公開APIからオッズを取得'''
-        url = f'https://race.netkeiba.com/api/api_get_jra_odds.html?race_id={self.race_id}&type=1'
-
-        r = requests.get(url)
-        odds_dict = json.loads(r.text)
-        odds = odds_dict['data']['odds']['1']
-        # 使いやすい形に成型してインスタンス変数につっこむ
-        return {str(int(key)) :[odds[key][0], odds[key][2]] for key in odds.keys()}
-
 
     def frame_no_culc(self, horse_num, horse_no):
         '''馬番と頭数から枠番を計算'''
@@ -1136,5 +1109,5 @@ class HorseResult():
 
 # TODO 単一メソッド動作確認用、後で消す
 if __name__ == '__main__':
-    rg = GetRaceData('202204040508')
+    rg = GetRaceData('201406010701')
     rg.main()

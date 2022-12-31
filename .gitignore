@@ -1,4 +1,6 @@
 *.csv
+!nar_error.csv
+!jra_error.csv
 *.json
 *.pyc
 *.log
