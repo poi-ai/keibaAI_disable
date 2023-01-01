@@ -495,7 +495,14 @@ class GetRaceData():
             # レース結果の各項目を設定
             horse_result.horse_no = row['馬番']
             horse_result.rank = row['着順']
-            horse_result.goal_time = row['タイム']
+
+            goal_time = row['タイム']
+            # 中止・除外・取消馬の場合は空文字をセット
+            if str(goal_time) == 'nan' or goal_time == '0:00.0':
+                horse_result.goal_time = ''
+            else:
+                # フォーマットをss.uに変更してから設定
+                horse_result.goal_time = wordchange.change_seconds(row['タイム'])
 
             # 着差、1着馬は2着との差をマイナスに
             if i == 0:
@@ -504,11 +511,19 @@ class GetRaceData():
             elif i == 1:
                 if row['着差'] == '同着':
                     self.horse_result_dict[winner_horse_no].diff = str(row['着差'])
+                    horse_result.diff = row['着差']
+                # 降着時はハナ差扱いにする
+                elif str(row['着差']) == 'nan':
+                    self.horse_result_dict[winner_horse_no].diff = '-ハナ'
+                    horse_result.diff = 'ハナ'
                 else:
                     self.horse_result_dict[winner_horse_no].diff = '-' + str(row['着差'])
-                horse_result.diff = row['着差']
+                    horse_result.diff = row['着差']
             else:
-                horse_result.diff = row['着差']
+                if str(row['着差']) == 'nan':
+                    horse_result.diff = 'ハナ'
+                else:
+                    horse_result.diff = row['着差']
 
             # 同着時の賞金計算
             if row['着差'] == '同着':

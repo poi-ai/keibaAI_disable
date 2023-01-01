@@ -325,11 +325,11 @@ class GetRaceData():
 
         # レース賞金
         prize = re.search('本賞金:(\d+),(\d+),(\d+),(\d+),(\d+)万円', race_data_list[11])
-        self.race_info.first_prize = prize.groups()[0]
-        self.race_info.second_prize = prize.groups()[1]
-        self.race_info.third_prize = prize.groups()[2]
-        self.race_info.fourth_prize = prize.groups()[3]
-        self.race_info.fifth_prize = prize.groups()[4]
+        self.race_info.first_prize = float(prize.groups()[0]) * 10
+        self.race_info.second_prize = float(prize.groups()[1]) * 10
+        self.race_info.third_prize = float(prize.groups()[2]) * 10
+        self.race_info.fourth_prize = float(prize.groups()[3]) * 10
+        self.race_info.fifth_prize = float(prize.groups()[4]) * 10
 
         # 各馬の情報取得
         fc = soup.select('div[class="fc"]')
@@ -520,7 +520,14 @@ class GetRaceData():
             # レース結果の各項目を設定
             horse_result.horse_no = row['馬番']
             horse_result.rank = row['着順']
-            horse_result.goal_time = row['タイム']
+
+            goal_time = row['タイム']
+            # 中止・除外・取消馬の場合は空文字をセット
+            if str(goal_time) == 'nan' or goal_time == '0:00.0':
+                horse_result.goal_time = ''
+            else:
+                # フォーマットをss.uに変更してから設定
+                horse_result.goal_time = wordchange.change_seconds(row['タイム'])
 
             # 騎手減量を取得
             # MEMO レース結果後に公開されるページなので、リアルタイムの情報取得には使えない
@@ -554,6 +561,13 @@ class GetRaceData():
                 horse_result.diff = row['着差']
             else:
                 horse_result.diff = row['着差']
+
+            # diff(着差)が全て整数の場合はテーブル抜き出し時に末尾に.0が付く
+            # 1着馬の枠がnan=float型でカラム全体でfloat扱いされるのでintへ変換する
+            try:
+                horse_result.diff = int(horse_result.diff)
+            except ValueError:
+                pass
 
             # 同着時の賞金計算
             if row['着差'] == '同着':
