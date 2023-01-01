@@ -1,6 +1,9 @@
+import csv
+import os
 import package
 import pandas as pd
 import re
+import sys
 import traceback
 from common import soup as Soup, output, wordchange, logger as lg, line, babacodechange
 
@@ -81,6 +84,12 @@ class GetRaceData():
 
     def main(self):
         '''主処理、各処理のメソッドを呼び出す'''
+
+        # 取得できないレースだった場合は何もせず返す
+        if self.id_check():
+            self.logger.info(f'{babacodechange.netkeiba(self.baba_id)}{self.race_no}R(race_id:{self.race_id})のレースは取得不可能(nar_error.csvに記載されている)ため記録を行いません')
+            return
+
         # ばんえいとそれ以外で取得ロジックを変える
         if self.baba_id == '65':
             # TODO 処理未実装のため何もせず返す
@@ -124,7 +133,9 @@ class GetRaceData():
 
             # 楽天競馬から補完データの取得
             try:
-                self.get_rakuten_umabashira()
+                # 楽天でエラーが出てしまうページは取得しない
+                if self.race_id != '201555041911' and self.race_id != '201555041811':
+                    self.get_rakuten_umabashira()
             except Exception as e:
                 self.error_output(f'{babacodechange.netkeiba(self.baba_id)}{self.race_no}R(race_id:{self.race_id})の楽天競馬馬柱取得処理でエラー', e, traceback.format_exc())
                 return
@@ -135,6 +146,17 @@ class GetRaceData():
         except Exception as e:
             self.error_output(f'{babacodechange.netkeiba(self.baba_id)}{self.race_no}R(race_id:{self.race_id})のCSV出力処理でエラー', e, traceback.format_exc())
             return
+
+    def id_check(self):
+
+        with open(os.path.join('scraping_error', 'nar_error.csv'), 'r', encoding='utf-8') as f:
+            reader = csv.reader(f)
+            headers = next(reader)
+
+            for row in reader:
+                if row[headers.index('race_id')] == self.race_id:
+                    return True
+        return False
 
     def get_umabashira(self):
         '''馬柱から発走前のデータを取得する'''
@@ -1039,9 +1061,7 @@ class HorseResult():
     def prize(self, prize): self.__prize = prize
 
 
-# TODO 単一メソッド動作確認用、後で消す
+# 単一レースを指定する場合は、直接このファイルを呼び出し第一引数にレースIDを載せる
 if __name__ == '__main__':
-    miss = ['201854032004','201842031910','201842031911','201842031912','201735052207']
-    for i in miss:
-        rg = GetRaceData(i)
-        rg.main()
+    rg = GetRaceData(sys.argv[1])
+    rg.main()
