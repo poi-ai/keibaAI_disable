@@ -294,8 +294,11 @@ class GetRaceData():
             # netkeiba独自の馬ID
             m = re.search('db.netkeiba.com/horse/(\d+)/"', str(horse_type))
             if m != None:
-                horse_race_info.horse_id = m.groups()[0]
-                horse_char_info.horse_id = m.groups()[0]
+                horse_race_info.horse_id = horse_char_info.horse_id = m.groups()[0]
+            else:
+                self.logger.info(f'{babacodechange.netkeiba(self.baba_id)}{self.race_no}R(race_id:{self.race_id})の競走馬データが見つかりません')
+                self.race_flg = False
+                return
 
             # 馬名
             horse_char_info.horse_name = wordchange.rm(horse_type.text)
