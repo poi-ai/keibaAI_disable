@@ -569,7 +569,9 @@ class GetRaceData():
             # diff(着差)が全て整数の場合はテーブル抜き出し時に末尾に.0が付く
             # 1着馬の枠がnan=float型でカラム全体でfloat扱いされるのでintへ変換する
             try:
-                horse_result.diff = int(horse_result.diff)
+                horse_result.diff = str(int(horse_result.diff))
+                if i == 1:
+                    self.horse_result_dict[winner_horse_no].diff = str(self.horse_result_dict[winner_horse_no].diff).replace('.0', '')
             except ValueError:
                 pass
 
