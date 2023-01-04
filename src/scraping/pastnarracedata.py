@@ -20,6 +20,7 @@ class GetRaceData():
         horse_char_info_dict(dict{horse_no(str): HorseCharInfo, ...}) : 各馬固有のデータ
         race_progress_info(RaceProgressInfo): レース全体のデータ
         horse_result_dict(dict{horse_no(str): HorseResult, ...}) : 各馬のレース結果データ
+        recorded_horse_id(list<str>) : 記録済みの競走馬IDリスト
         output_type(str) : 出力ファイルを分割
                            m : 月ごと(デフォルト)、y : 年ごと、a : 全ファイルまとめて
     '''
@@ -36,6 +37,7 @@ class GetRaceData():
         self.race_date = self.race_info.race_date = race_id[:4] + race_id[6:10]
         self.race_no = self.race_info.race_no = race_id[10:]
         self.output_type = output_type
+        self.recorded_horse_id = []
         self.race_flg = True
 
     # getter
@@ -59,6 +61,8 @@ class GetRaceData():
     def horse_result_dict(self): return self.__horse_result_dict
     @property
     def output_type(self): return self.__output_type
+    @property
+    def recorded_horse_id(self): return self.__recorded_horse_id
 
     # setter
     @race_id.setter
@@ -81,14 +85,19 @@ class GetRaceData():
     def horse_result_dict(self, horse_result_dict): self.__horse_result_dict = horse_result_dict
     @output_type.setter
     def output_type(self, output_type): self.__output_type = output_type
+    @recorded_horse_id.setter
+    def recorded_horse_id(self, recorded_horse_id): self.__recorded_horse_id = recorded_horse_id
 
-    def main(self):
+    def main(self, recorded_horse_id):
         '''主処理、各処理のメソッドを呼び出す'''
+
+        # 既に記録済みの競走馬IDを変数に保管
+        self.recorded_horse_id = recorded_horse_id
 
         # 取得できないレースだった場合は何もせず返す
         if self.id_check():
             self.logger.info(f'{babacodechange.netkeiba(self.baba_id)}{self.race_no}R(race_id:{self.race_id})のレースは取得不可能(nar_error.csvに記載されている)ため記録を行いません')
-            return
+            return self.recorded_horse_id
 
         # ばんえいとそれ以外で取得ロジックを変える
         if self.baba_id == '65':
@@ -114,22 +123,22 @@ class GetRaceData():
                 self.get_umabashira()
             except Exception as e:
                 self.error_output(f'{babacodechange.netkeiba(self.baba_id)}{self.race_no}R(race_id:{self.race_id})の馬柱取得処理でエラー', e, traceback.format_exc())
-                return
+                return self.recorded_horse_id
 
             # レース中止フラグチェック
             if not self.race_flg:
-                return
+                return self.recorded_horse_id
 
             # レース結果からデータ取得
             try:
                 self.get_result()
             except Exception as e:
                 self.error_output(f'{babacodechange.netkeiba(self.baba_id)}{self.race_no}R(race_id:{self.race_id})のレース結果取得処理でエラー', e, traceback.format_exc())
-                return
+                return self.recorded_horse_id
 
             # レース中止フラグチェック
             if not self.race_flg:
-                return
+                return self.recorded_horse_id
 
             # 楽天競馬から補完データの取得
             try:
@@ -138,17 +147,20 @@ class GetRaceData():
                     self.get_rakuten_umabashira()
             except Exception as e:
                 self.error_output(f'{babacodechange.netkeiba(self.baba_id)}{self.race_no}R(race_id:{self.race_id})の楽天競馬馬柱取得処理でエラー', e, traceback.format_exc())
-                return
+                return self.recorded_horse_id
 
         # 取得したデータをCSV出力
         try:
             self.output_csv()
         except Exception as e:
             self.error_output(f'{babacodechange.netkeiba(self.baba_id)}{self.race_no}R(race_id:{self.race_id})のCSV出力処理でエラー', e, traceback.format_exc())
-            return
+            return self.recorded_horse_id
+
+        # 新たに記録した競走馬IDを追加したリストを返す
+        return self.recorded_horse_id
 
     def id_check(self):
-
+        '''エラーが発生するレースは除外する'''
         with open(os.path.join('scraping_error', 'nar_error.csv'), 'r', encoding='utf-8') as f:
             reader = csv.reader(f)
             headers = next(reader)
@@ -422,7 +434,6 @@ class GetRaceData():
             # self.hoge.horse_no = td[0].text
             # TODO いつか作る
 
-
     def get_rakuten_umabashira(self):
         '''netkeibaから拾えないデータ(減量騎手・馬主名・生産牧場)を楽天競馬のサイトから取得する'''
 
@@ -621,7 +632,7 @@ class GetRaceData():
         race_info_df.columns = [column.replace('_RaceInfo__', '') for column in race_info_df.columns]
         output.csv(race_info_df, f'nar_race_info{filename_tail}')
 
-        # 発走前馬データを出力
+        # 発走前競走馬データを出力
         if len(self.horse_race_info_dict) != 0:
             horse_race_info_df = pd.concat([pd.DataFrame.from_dict(vars(df), orient='index').T for df in self.horse_race_info_dict.values()])
             horse_race_info_df.columns = [column.replace('_HorseRaceInfo__', '') for column in horse_race_info_df.columns]
@@ -629,11 +640,13 @@ class GetRaceData():
         else:
             self.logger.info(f'race_id:{self.race_id}\nが取得できなかったため出力を行いません')
 
-        # 馬データを出力
+        # 競走馬データを出力
         if len(self.horse_char_info_dict) != 0:
             horse_char_info_df = pd.concat([pd.DataFrame.from_dict(vars(df), orient='index').T for df in self.horse_char_info_dict.values()])
             horse_char_info_df.columns = [column.replace('_HorseCharInfo__', '') for column in horse_char_info_df.columns]
-            output.csv(horse_char_info_df, f'nar_horse_char_info{filename_tail}')
+            horse_char_info_df = self.char_info_check(horse_char_info_df)
+            if len(horse_char_info_df) != 0:
+                output.csv(horse_char_info_df, f'nar_horse_char_info{filename_tail}')
         else:
             self.logger.info(f'race_id:{self.race_id}\nが取得できなかったため出力を行いません')
 
@@ -649,6 +662,19 @@ class GetRaceData():
             output.csv(horse_result_df, f'nar_horse_result{filename_tail}')
         else:
             self.logger.info(f'race_id:{self.race_id}\nが取得できなかったため出力を行いません')
+
+    def char_info_check(self, horse_char_info_df):
+        '''CSVに既に記載のある競走馬データは削除する'''
+
+        # 重複する競走馬データは出力対象から外す
+        for horse_id in self.recorded_horse_id:
+            horse_char_info_df = horse_char_info_df[horse_char_info_df['horse_id'] != horse_id]
+
+        # 出力対象の競走馬IDを記録済みリストへ追加
+        for horse_id in horse_char_info_df['horse_id']:
+            self.recorded_horse_id.append(str(horse_id))
+
+        return horse_char_info_df
 
     def frame_no_culc(self, horse_num, horse_no):
         '''馬番と頭数から枠番を計算'''
@@ -1087,8 +1113,30 @@ class HorseResult():
     @prize.setter
     def prize(self, prize): self.__prize = prize
 
+def get_recorded_horse():
+    '''CSVから記録済みの競走馬IDを記録する'''
+
+    csv_path = os.path.join(os.path.dirname(__file__), '..', '..', 'data', 'csv', 'nar_horse_char_info.csv')
+
+    try:
+        with open(csv_path, 'r', encoding='utf-8') as f:
+            reader = csv.reader(f)
+            return [row[0] for row in reader]
+    except FileNotFoundError:
+        return []
 
 # 単一レースを指定する場合は、直接このファイルを呼び出し第一引数にレースIDを載せる
 if __name__ == '__main__':
+
+    # 初期処理
     rg = GetRaceData(sys.argv[1])
-    rg.main()
+
+    # CSVから既に記録済みの競走馬IDを取得
+    try:
+        recorded_horse_id = get_recorded_horse()
+    except Exception as e:
+        rg.error_output('記録済み競走馬データCSV取得処理でエラー', e, traceback.format_exc())
+        exit()
+
+    # 主処理
+    rg.main(recorded_horse_id)

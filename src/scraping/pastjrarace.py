@@ -1,4 +1,6 @@
+import csv
 import itertools
+import os
 import package
 import pastjraracedata
 import sys
@@ -16,6 +18,7 @@ class RaceData():
         oldest_date(str) : 取得対象の最も古い日付(yyyyMMdd)
                           デフォルト : 20070728(閲覧可能な最古の日付)
         date(list<str>) : 取得対象の日付(yyyyMMdd)
+        recorded_horse_id(list<str>) : 記録済みの競走馬ID
         output_type(str) : 出力ファイルを分割
                            m : 月ごと(デフォルト)、y : 年ごと、a : 全ファイルまとめて
     '''
@@ -26,6 +29,7 @@ class RaceData():
         logger.info('初期処理開始')
         self.__oldest_date, self.__latest_date = validate.check('20070728', oldest_date, latest_date)
         logger.info('日付のバリデーションチェック終了')
+        self.__recorded_horse_id = []
         self.__output_type = output_type
 
     @property
@@ -33,16 +37,27 @@ class RaceData():
     @property
     def oldest_date(self): return self.__oldest_date
     @property
+    def recorded_horse_id(self): return self.__recorded_horse_id
+    @property
     def output_type(self): return self.__output_type
     @latest_date.setter
     def latest_date(self, latest_date): self.__latest_date = latest_date
     @oldest_date.setter
     def oldest_date(self, oldest_date): self.__oldest_date = oldest_date
+    @recorded_horse_id.setter
+    def recorded_horse_id(self, recorded_horse_id): self.__recorded_horse_id = recorded_horse_id
     @output_type.setter
     def output_type(self, output_type): self.__output_type = output_type
 
     def main(self):
         '''主処理、各メソッドの呼び出し'''
+
+        # CSVから既に記録済みの競走馬IDを取得
+        try:
+            self.get_recorded_horse()
+        except Exception as e:
+            self.error_output('記録済み競走馬データCSV取得処理でエラー', e, traceback.format_exc())
+            return
 
         # 対象の日付リストの取得
         hold_date_list = self.get_hold_date()
@@ -67,7 +82,7 @@ class RaceData():
             # レースIDからレース情報を取得する
             for race_id in race_id_list:
                 race_data = pastjraracedata.GetRaceData(race_id, self.output_type)
-                race_data.main()
+                self.recorded_horse_id = race_data.main(self.recorded_horse_id)
 
             time.sleep(3)
 
@@ -177,6 +192,19 @@ class RaceData():
                 race_id_list.append(race_url[28:40])
 
         return race_id_list
+
+    def get_recorded_horse(self):
+        '''CSVから記録済みの競走馬IDを記録する'''
+
+        csv_path = os.path.join(os.path.dirname(__file__), '..', '..', '..', 'data', 'csv', 'jra_horse_char_info.csv')
+
+        try:
+            with open(csv_path, 'r', encoding='utf-8') as f:
+                reader = csv.reader(f)
+
+                self.recorded_horse_id = [row[0] for row in reader]
+        except FileNotFoundError:
+            return []
 
     def error_output(self, message, e, stacktrace):
         '''エラー時のログ出力/LINE通知を行う

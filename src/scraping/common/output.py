@@ -9,7 +9,7 @@ def csv(df, file_name):
     '''
 
     # リポジトリのルートフォルダを指定
-    repos_root = os.path.join(os.path.dirname(__file__), '../../../')
+    repos_root = os.path.join(os.path.dirname(__file__), '..', '..', '..')
     data_folder = os.path.join(repos_root, 'data')
     csv_folder = os.path.join(data_folder, 'csv')
     csv_file = os.path.join(csv_folder, f'{file_name}.csv')
