@@ -126,7 +126,8 @@ class Nar():
             race_list = result[0]
 
             # 取得成功したらエラーリストから除去
-            self.baba_error.remove(race_url)
+            if race_url in self.baba_error:
+                self.baba_error.remove(race_url)
 
             logger.info(f'{babacodechange.keibago(race_url[-2:].replace("=", ""))}競馬場のレーステーブル取得')
 
@@ -170,8 +171,11 @@ class Nar():
         # 2度失敗したら取得対象から除く TODO 最初の1個しか消えない、2回でよいか
         for baba, error_count in {baba_key: self.baba_error.count(baba_key) for baba_key in self.baba_error}.items():
             if error_count >= 2:
-                self.baba_error.remove(baba)
-                self.baba_url.remove(baba)
+                if baba in self.baba_error:
+                    self.baba_error.remove(baba)
+
+                if baba in self.baba_url:
+                    self.baba_url.remove(baba)
 
     def time_check(self, called = False):
         '''次のオッズ記録時間までの秒数を計算する
