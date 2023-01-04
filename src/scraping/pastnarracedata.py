@@ -394,6 +394,10 @@ class GetRaceData():
                 horse_race_info.age = m.groups()[1]
                 horse_char_info.hair_color = m.groups()[2]
 
+            # netkeibaデータ欠損補完
+            if horse_char_info.horse_name == 'ザントブリッツ':
+                horse_char_info.hair_color = '栗'
+
             # 騎手名・netkeiba独自の騎手ID
             jockey = re.search('db.netkeiba.com/jockey/(\d+)/">(.+)</a>', str(info))
             if jockey != None:
