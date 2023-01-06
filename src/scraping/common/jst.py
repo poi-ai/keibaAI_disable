@@ -13,6 +13,10 @@ def time():
     '''現在の時刻(JST)をstr型[YYYYmmddHHMMSS]で返す'''
     return now().strftime("%Y%m%d%H%M%S")
 
+def mtime():
+    '''現在の時刻(JST)をstr型[YYYYmmddHHMM]で返す'''
+    return now().strftime("%Y%m%d%H%M")
+
 def year():
     '''現在の年(JST)をstr型[YYYY]で返す'''
     return str(now().year)
