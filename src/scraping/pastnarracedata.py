@@ -227,9 +227,7 @@ class GetRaceData():
         self.race_info.race_name = race_name.text.replace('\n', '')
 
         # CSSからグレードチェック、13はWIN5
-        if 'Icon_GradeType1"' in str(race_name):
-            self.race_info.grade = 'GI'
-        elif 'Icon_GradeType2' in str(race_name):
+        if 'Icon_GradeType2' in str(race_name):
             self.race_info.grade = 'GII'
         elif 'Icon_GradeType3' in str(race_name):
             self.race_info.grade = 'GIII'
@@ -259,6 +257,8 @@ class GetRaceData():
             self.race_info.grade = '2勝'
         elif 'Icon_GradeType18' in str(race_name):
             self.race_info.grade = '1勝'
+        elif 'Icon_GradeType1' in str(race_name):
+            self.race_info.grade = 'GI'
 
         # 待選、暫定処理としてグレードの末尾に付けておく
         if 'Icon_GradeType14' in str(race_name):
@@ -414,6 +414,7 @@ class GetRaceData():
 
     def get_bannei_umabashira(self):
         '''keiba.goの馬柱から発走前のデータを取得する'''
+        '''TODO いつか作る
         url = f'https://www.keiba.go.jp/KeibaWeb/TodayRaceInfo/DebaTable?k_raceDate={self.race_date[:4]}%2f{self.race_date[4:6]}%2f{self.race_date[6:]}&k_raceNo={int(self.race_no)}&k_babaCode=3'
 
         soup = Soup.get_soup(url)
@@ -436,7 +437,7 @@ class GetRaceData():
 
             td = frame.find_all(frame)
             # self.hoge.horse_no = td[0].text
-            # TODO いつか作る
+        '''
 
     def get_rakuten_umabashira(self):
         '''netkeibaから拾えないデータ(減量騎手・馬主名・生産牧場)を楽天競馬のサイトから取得する'''
@@ -731,7 +732,7 @@ class RaceInfo():
         self.__dirt_condition = '' # 馬場状態(ダート)
         self.__distance = '' # 距離
         self.__around = '' # 回り(右/左)
-        self.__in_out = '0' # 使用コース(内回り/外回り)[地方は内外ないため0固定]
+        self.__in_out = '' # 使用コース(内回り/外回り)[地方は内外ないため0固定]
         self.__race_time = '' # 発走時刻
         self.__hold_no = '' # 開催回
         self.__hold_date = '' # 開催日

@@ -248,9 +248,7 @@ class GetRaceData():
         self.race_info.race_name = race_name.text.replace('\n', '')
 
         # CSSからクラスチェック、13はWIN5
-        if 'Icon_GradeType1"' in str(race_name):
-            self.race_info.grade = 'GI'
-        elif 'Icon_GradeType2' in str(race_name):
+        if 'Icon_GradeType2' in str(race_name):
             self.race_info.grade = 'GII'
         elif 'Icon_GradeType3' in str(race_name):
             self.race_info.grade = 'GIII'
@@ -280,6 +278,8 @@ class GetRaceData():
             self.race_info.grade = '2勝'
         elif 'Icon_GradeType18' in str(race_name):
             self.race_info.grade = '1勝'
+        elif 'Icon_GradeType1' in str(race_name):
+            self.race_info.grade = 'GI'
 
         # 待選、暫定処理としてグレードの末尾に付けておく
         if 'Icon_GradeType14' in str(race_name):
