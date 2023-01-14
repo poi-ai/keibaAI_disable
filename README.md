@@ -1,3 +1,11 @@
+ 本リポジトリは新リポジトリに移行し次第disableの予定です。<br>
+ →[新リポジトリ](https://github.com/poi-ai/keibaAI_new)<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
 ![GitHub code size in bytes](https://img.shields.io/github/languages/code-size/poi-ai/keibaAI)
 ![Lines of code](https://img.shields.io/tokei/lines/github/poi-ai/keibaAI)
 ![Relative date](https://img.shields.io/date/1640011380?label=first%20commit)
