@@ -436,7 +436,7 @@ class Jra():
         # 最左列にレースIDのカラム追加
         odds_data.insert(0, 'race_id', jst.date() + race.baba_code.zfill(2) + race.race_no.zfill(2))
         # 最右列に現在時刻(yyyyMMddHHMM)・発走までの残り時間(分)・JRAフラグの追加
-        odds_data = pd.concat([odds_data, fukusho, pd.DataFrame([[jst.mtime(), max(-1, int((race.race_time - jst.now()).total_seconds() / 60)), race.jra_flg] for _ in range(len(odds_data))], index = odds_data.index)], axis = 1)
+        odds_data = pd.concat([odds_data, fukusho, pd.DataFrame([[jst.mtime(), max(-1, round((race.race_time - jst.now()).total_seconds() / 60)), race.jra_flg] for _ in range(len(odds_data))], index = odds_data.index)], axis = 1)
         odds_data.set_axis(self.write_data.columns, axis = 1, inplace = True)
         # 一時保存用変数に格納
         self.write_data = pd.concat([odds_data, self.write_data])
