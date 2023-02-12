@@ -1,5 +1,5 @@
- 本リポジトリは新リポジトリに移行し次第disableの予定です。<br>
- →[新リポジトリ](https://github.com/poi-ai/keibaAI_disable_new)<br>
+ #### 本リポジトリはdisableになりました。<br>
+ #### 現在は新リポジトリで開発中です →[新リポジトリ](https://github.com/poi-ai/keibaAI)<br>
 <br>
 <br>
 <br>
