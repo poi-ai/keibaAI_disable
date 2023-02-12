@@ -1,19 +1,19 @@
  本リポジトリは新リポジトリに移行し次第disableの予定です。<br>
- →[新リポジトリ](https://github.com/poi-ai/keibaAI_new)<br>
+ →[新リポジトリ](https://github.com/poi-ai/keibaAI_disable_new)<br>
 <br>
 <br>
 <br>
 <br>
 <br>
 <br>
-![GitHub code size in bytes](https://img.shields.io/github/languages/code-size/poi-ai/keibaAI)
-![Lines of code](https://img.shields.io/tokei/lines/github/poi-ai/keibaAI)
+![GitHub code size in bytes](https://img.shields.io/github/languages/code-size/poi-ai/keibaAI_disable)
+![Lines of code](https://img.shields.io/tokei/lines/github/poi-ai/keibaAI_disable)
 ![Relative date](https://img.shields.io/date/1640011380?label=first%20commit)
-![GitHub last commit](https://img.shields.io/github/last-commit/poi-ai/keibaAI)
+![GitHub last commit](https://img.shields.io/github/last-commit/poi-ai/keibaAI_disable)
 ![GitHub commit activity](https://img.shields.io/github/commit-activity/m/poi-ai/keibaai)<br>
-[![Twitter](https://github.com/poi-ai/img/blob/main/twitter.png)](https://twitter.com/intent/tweet?text=poi-ai/keibaAI&url=https://github.com/poi-ai/keibaAI)
-[![はてなブックマーク](https://github.com/poi-ai/img/blob/main/hatebu.png)](https://b.hatena.ne.jp/entry/s/github.com/poi-ai/keibaAI)
-[![Facebook](https://github.com/poi-ai/img/blob/main/facebook.png)](https://www.facebook.com/sharer/sharer.php?u=https://github.com/poi-ai/keibaAI)
+[![Twitter](https://github.com/poi-ai/img/blob/main/twitter.png)](https://twitter.com/intent/tweet?text=poi-ai/keibaAI_disable&url=https://github.com/poi-ai/keibaAI_disable)
+[![はてなブックマーク](https://github.com/poi-ai/img/blob/main/hatebu.png)](https://b.hatena.ne.jp/entry/s/github.com/poi-ai/keibaAI_disable)
+[![Facebook](https://github.com/poi-ai/img/blob/main/facebook.png)](https://www.facebook.com/sharer/sharer.php?u=https://github.com/poi-ai/keibaAI_disable)
 
 |項目|
 | :--- |
@@ -34,7 +34,7 @@
 実データは容量の都合上、本リポジトリでは扱わず、別の場所で管理を行なっております。
 (ある程度完成に近づいたらprivateに変更予定です。)
 
-各PGの説明等、詳細は[Wiki](https://github.com/poi-ai/keibaAI/wiki)に記載しています。
+各PGの説明等、詳細は[Wiki](https://github.com/poi-ai/keibaAI_disable/wiki)に記載しています。
 
 <a id="anchor2"></a>
 ## 2. 開発環境
@@ -54,7 +54,7 @@ pip >= 22.3.1
 ## 3. 初期設定
 #### clone
 ```
-$ git clone https://github.com/poi-ai/keibaAI.git
+$ git clone https://github.com/poi-ai/keibaAI_disable.git
 ```
 
 ### pipのアップデート
@@ -99,7 +99,7 @@ $ pip install -r requirements.txt
 
 `$ python surveillance.py`
 
-詳細は[Wiki](https://github.com/poi-ai/keibaAI/wiki)に書いていますので、そちらをご覧ください。
+詳細は[Wiki](https://github.com/poi-ai/keibaAI_disable/wiki)に書いていますので、そちらをご覧ください。
 
 ``
 []()
